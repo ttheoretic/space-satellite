@@ -8,7 +8,8 @@ import { StatusStrip } from "../components/StatusStrip";
 import { type ChartRow, TrendChart } from "../components/TrendChart";
 import { ValueTile } from "../components/ValueTile";
 import { CHART } from "../theme";
-import type { Frame, LimitRow, Parameter, SpacecraftEvent } from "../types";
+import { currentOrNextPass } from "../hooks/usePasses";
+import type { Frame, LimitRow, Parameter, Pass, SpacecraftEvent } from "../types";
 
 const WINDOWS = [
   { minutes: 30, label: "30 min" },
@@ -25,12 +26,14 @@ interface Props {
   events: SpacecraftEvent[];
   limits: LimitRow[];
   randomFaults: boolean;
+  passes: Pass[];
+  now: number | null;
   windowMinutes: number;
   onWindowChange: (minutes: number) => void;
 }
 
 export function Dashboard(props: Props) {
-  const { params, latest, history, events, limits, randomFaults, windowMinutes, onWindowChange } = props;
+  const { params, latest, history, events, limits, randomFaults, passes, now, windowMinutes, onWindowChange } = props;
   const P = useMemo(() => Object.fromEntries(params.map((p) => [p.key, p])), [params]);
   const L = useMemo(() => Object.fromEntries(limits.map((l) => [l.param_key, l])), [limits]);
 
@@ -60,7 +63,7 @@ export function Dashboard(props: Props) {
 
   return (
     <div className="dashboard">
-      <StatusStrip frame={latest} />
+      <StatusStrip frame={latest} next={currentOrNextPass(passes, now)} now={now} />
 
       <div className="panels">
         <section className="panel">

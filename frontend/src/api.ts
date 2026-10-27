@@ -8,7 +8,10 @@ import type {
   LimitRow,
   LimitValues,
   Parameter,
+  PassesResponse,
+  PassTrack,
   SpacecraftEvent,
+  Station,
   Status,
   User,
 } from "./types";
@@ -54,6 +57,13 @@ export const api = {
   saveLimits: (key: string, values: LimitValues) =>
     request<LimitRow[]>(`/api/limits/${key}`, { method: "PUT", body: JSON.stringify(values) }),
   resetLimits: (key: string) => post<LimitRow[]>(`/api/limits/${key}/reset`),
+
+  // Bodenstation & Überflüge
+  saveStation: (station: Station) =>
+    request<Station>("/api/station", { method: "PUT", body: JSON.stringify(station) }),
+  passes: (hours = 48) => request<PassesResponse>(`/api/passes?hours=${hours}`),
+  pass: (id: string) => request<PassTrack>(`/api/passes/${id}`),
+  jumpToNextPass: () => post("/api/sim/jump-to-next-pass"),
 
   // Demo-Steuerung
   setSpeed: (speed: number) => post("/api/sim/speed", { speed }),

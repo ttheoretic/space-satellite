@@ -8,9 +8,9 @@ New-Space-Startups. Dieser Prototyp dient als Demo für Kundengespräche.
 > Temperaturen erzeugt aber ein Simulator. Die Kopfzeile zeigt deshalb dauerhaft
 > **„SIMULATED TELEMETRY“**.
 
-**Stand: Schritt 2 von 4** – Simulator, Live-Dashboard, Grenzwerte & Alarme,
-Demo-Personen mit Rollen und Betriebsprotokoll.
-Als Nächstes folgen Überflugplanung und Befehlsliste.
+**Stand: Schritt 3 von 4** – Simulator, Live-Dashboard, Grenzwerte & Alarme,
+Demo-Personen mit Rollen, Betriebsprotokoll und Überflugplanung.
+Als Nächstes folgt die Befehlsliste.
 
 ---
 
@@ -140,7 +140,8 @@ unter http://localhost:8000/docs bzw. http://localhost:8080/docs.
   Zeitraffer einen Tag vor, wird die TLE auch einen Tag „älter“ – genau so
   wächst in der Realität die Ungenauigkeit der Vorhersage.
 
-**Navigationsleiste** – Seiten *Dashboard*, *Alarms*, *Limits*, *Log*; rechts:
+**Navigationsleiste** – Seiten *Dashboard*, *Passes*, *Alarms*, *Limits*, *Log*
+(grüner Punkt bei *Passes* = Überflug läuft gerade); rechts:
 - **Alarmanzeige**: `✓ NO ALARMS`, gelb (Warnung) oder rot (kritisch) mit Anzahl
   aktiver und unbestätigter Alarme. Unbestätigte Alarme pulsieren; ein Klick
   öffnet die Alarmliste. Auch der Browser-Tab zeigt die Anzahl: „(2) OrbitDesk“.
@@ -148,7 +149,7 @@ unter http://localhost:8000/docs bzw. http://localhost:8080/docs.
 
   | Person | Rolle | Darf |
   |---|---|---|
-  | Anna | Operator | Alarme bestätigen, Grenzwerte ändern (ab Schritt 4: Befehle anlegen und senden) |
+  | Anna | Operator | Alarme bestätigen, Grenzwerte und Bodenstation ändern (ab Schritt 4: Befehle anlegen und senden) |
   | Ben | Flight Director | wie Operator, zusätzlich Befehle freigeben (ab Schritt 4) |
   | Clara | Engineer | nur lesen |
 
@@ -158,7 +159,8 @@ unter http://localhost:8000/docs bzw. http://localhost:8080/docs.
 
 **Dashboard**
 - **Statusleiste:** Betriebsmodus (NOMINAL/SAFE), Sonne oder Erdschatten,
-  Batterieheizung, Position über der Erde und Bahnhöhe
+  Batterieheizung, **Funkkontakt** (`IN CONTACT · EL 34°` oder „Next AOS in …“),
+  Position über der Erde und Bahnhöhe
 - **Power / Thermal / Attitude:** aktuelle Messwerte je Subsystem. Verletzt ein
   Wert eine Grenze, färbt sich die Kachel **gelb (▲ WARNING)** oder
   **rot (◆ CRITICAL)** – immer mit Symbol und Text, nie nur über die Farbe. Mit der
@@ -170,6 +172,26 @@ unter http://localhost:8000/docs bzw. http://localhost:8080/docs.
 - **Simulation (Demo controls):** Fehler gezielt auslösen (*Trigger*), alle
   Fehler beheben, Zufallsfehler ein/aus, Demo zurücksetzen. Bei aktivem Fehler
   steht dabei, wie man ihn im echten Betrieb beheben würde.
+
+**Passes** – Überflugplanung für die Bodenstation (Standard: TU Berlin):
+- **Next pass / Pass in progress:** Countdown bis AOS bzw. LOS, Richtung,
+  maximale Elevation, Dauer; während des Überflugs live Elevation, Azimut und
+  Entfernung. *Fast-forward to next pass* (Demo) spult bis 1 Minute vor AOS vor –
+  die übersprungene Zeit wird im Schnelldurchlauf simuliert, Verlauf und Alarme
+  bleiben lückenlos.
+- **Ground station:** Name, Position, Höhe und Mindestelevation (Standard 5°),
+  mit Vorlagen (TU Berlin, Uni Würzburg, Uni Stuttgart). Ändern dürfen Operator
+  und Flight Director; die Änderung steht im Protokoll.
+- **Timeline:** die nächsten 48 h; jeder Balken ein Überflug, Höhe = maximale
+  Elevation. Grün = läuft gerade, Klick = auswählen.
+- **Passes:** Liste mit AOS, LOS, Dauer, maximaler Elevation und Richtung.
+- **Sky plot:** Bahn des gewählten Überflugs am Himmel, wie von der Antenne aus
+  gesehen (Mitte = senkrecht oben, Rand = Horizont, Norden oben). Während des
+  Überflugs zeigt ein grüner Punkt die aktuelle Position.
+
+Die Überflüge werden mit Skyfield aus der TLE berechnet (`find_events`).
+Mit der Ersatz-TLE weist ein Hinweis darauf hin, dass die Zeiten nur angenähert
+sind.
 
 **Alarms** – offene Alarme mit Stufe, Zustand (`ACTIVE` / `BACK TO NORMAL`),
 Wert beim Auslösen und aktuell, verletzter Grenze und Zeit. Ein Alarm bleibt in
@@ -216,7 +238,11 @@ Unerwartetes passiert.
 5. **Nachvollziehbarkeit:** *Log* öffnen – wer hat wann bestätigt.
 6. **Konfigurierbar:** *Limits* öffnen und eine Grenze ändern; erscheint sofort
    im Protokoll.
-7. „Clear all faults“, wieder auf **1×**.
+7. **Überflugplanung:** *Passes* öffnen – „Wann können wir mit dem Satelliten
+   sprechen?“ Zeitleiste und Himmelskarte zeigen. Auf *Fast-forward to next
+   pass* klicken, dann **10×**: Kontaktbeginn live (Countdown, grüner Punkt in
+   der Himmelskarte, `IN CONTACT` auf dem Dashboard).
+8. „Clear all faults“, wieder auf **1×**.
 
 Alternative Geschichte mit Bezug zur Physik: „Battery heater thermostat
 failure“ auslösen, auf 60× schalten – in der nächsten Eklipse kühlt die
@@ -306,8 +332,9 @@ space-satellite/
 │   │   ├── db.py, models.py    Datenbank (SQLAlchemy) und Tabellen
 │   │   ├── ws.py               WebSocket-Verteiler
 │   │   ├── schemas.py          Formate der API-Anfragen
-│   │   ├── api/                REST-Endpunkte (system, telemetry, alarms)
+│   │   ├── api/                REST-Endpunkte (system, telemetry, alarms, passes)
 │   │   ├── orbit/tle.py        TLE laden (CelesTrak → Cache → Ersatz-TLE)
+│   │   ├── orbit/passes.py     Überflugberechnung, Bodenstation, Himmelsbahn
 │   │   └── simulator/
 │   │       ├── cubesat.py      Zustandsmodell des CubeSats
 │   │       ├── sun.py          Sonnenstand und Erdschatten
@@ -320,7 +347,7 @@ space-satellite/
         ├── App.tsx             Kopfzeile, Tabs, Seiten
         ├── hooks/useLiveData.ts  WebSocket-Verbindung mit Auto-Reconnect
         ├── components/         Header, Kacheln, Diagramme, Alarmanzeige, Personenauswahl …
-        ├── pages/              Dashboard, Alarms, Limits, Log
+        ├── pages/              Dashboard, Passes, Alarms, Limits, Log
         └── styles/theme.css    dunkles Kontrollraum-Design
 ```
 
@@ -338,7 +365,9 @@ pytest
 Die Tests prüfen u. a.: gültige TLE und Prüfsummen, Sonnenabstand und
 Schattengeometrie, realistischen Eklipse-Anteil (25–40 % des Orbits),
 Fehlerbilder (Heizungsausfall kühlt die Batterie unter 0 °C), Hysterese und
-Eskalation der Alarme, Rollenrechte (Engineer darf nichts ändern) und die API.
+Eskalation der Alarme, Rollenrechte (Engineer darf nichts ändern),
+plausible Überflüge (Anzahl, Dauer, Elevation; höhere Mindestelevation = weniger
+Überflüge), Bodenstation ändern, Vorspulen und die API.
 
 ---
 
@@ -362,6 +391,11 @@ Eskalation der Alarme, Rollenrechte (Engineer darf nichts ändern) und die API.
 | **FDIR** | *Fault Detection, Isolation and Recovery* – Bordsoftware, die Fehler selbst erkennt und den Satelliten schützt |
 | **SAFE-Modus** | Sicherheitsmodus: Nutzlast aus, Satellit wartet auf Anweisungen vom Boden |
 | **Latch-up** | Kurzschluss in einem Chip, ausgelöst durch ein energiereiches Teilchen aus der Weltraumstrahlung |
+| **Überflug (Pass)** | Zeitspanne, in der der Satellit über dem Horizont der Bodenstation steht und Funkkontakt möglich ist |
+| **AOS / LOS** | *Acquisition / Loss of Signal* – Beginn und Ende des Funkkontakts |
+| **Elevation / Azimut** | Höhe über dem Horizont (0–90°) bzw. Himmelsrichtung (0° = Nord, 90° = Ost) |
+| **Mindestelevation** | Untergrenze, ab der Kontakt zählt (Gebäude, Bäume und schwaches Signal knapp über dem Horizont) |
+| **Sky Plot** | Himmelskarte eines Überflugs aus Sicht der Antenne |
 | **Grenzwert (Limit)** | Wert, ab dem ein Messwert als auffällig (Warnung) oder gefährlich (kritisch) gilt |
 | **Hysterese** | Kleiner Sicherheitsabstand, damit ein Alarm bei rauschenden Werten nicht ständig an- und ausgeht |
 | **Quittieren / Bestätigen** | Ein Mensch bestätigt, dass er den Alarm gesehen hat |

@@ -941,3 +941,133 @@ button {
   gap: 6px;
   font-size: 13px;
 }
+
+/* ================================================== Schritt 3: Überflüge */
+
+.tabs__live {
+  margin-left: 6px;
+  color: var(--good);
+}
+
+.passes-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 16px;
+}
+.passes-bottom {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.next-pass--live {
+  border-color: rgba(12, 163, 12, 0.6);
+}
+.next-pass__countdown {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.next-pass__countdown .mono {
+  font-size: 30px;
+  font-weight: 600;
+}
+.next-pass__kv {
+  font-size: 13px;
+}
+
+.station__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+.field--wide {
+  grid-column: 1 / -1;
+}
+.field input,
+.station__actions select {
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+}
+.field input:disabled {
+  color: var(--text-2);
+  background: transparent;
+  border-color: var(--border);
+}
+.station__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.timeline {
+  position: relative;
+}
+.timeline svg {
+  display: block;
+}
+.timeline__pass {
+  cursor: pointer;
+}
+.timeline__tooltip {
+  position: absolute;
+  top: -8px;
+  transform: translate(-50%, -100%);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.table--select tbody tr {
+  cursor: pointer;
+}
+.table--select tbody tr:hover td {
+  background: var(--surface-2);
+}
+.table--select tbody tr.is-selected td {
+  background: rgba(57, 135, 229, 0.12);
+}
+.elbar {
+  display: inline-block;
+  width: 60px;
+  height: 6px;
+  margin-right: 8px;
+  border-radius: 3px;
+  background: var(--surface-3);
+  vertical-align: middle;
+  overflow: hidden;
+}
+.elbar span {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: #3987e5;
+}
+
+.skyplot {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  margin: 0 auto 8px;
+}
+
+@media (max-width: 1200px) {
+  .passes-top,
+  .passes-bottom {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

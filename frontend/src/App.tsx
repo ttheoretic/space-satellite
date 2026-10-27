@@ -7,15 +7,18 @@ import { ConnectionDot, Header } from "./components/Header";
 import { UserSwitcher } from "./components/UserSwitcher";
 import { BRAND } from "./brand";
 import { useLiveData, useMissionTime } from "./hooks/useLiveData";
+import { usePasses } from "./hooks/usePasses";
 import { Alarms } from "./pages/Alarms";
 import { Dashboard } from "./pages/Dashboard";
 import { Limits } from "./pages/Limits";
 import { Log } from "./pages/Log";
+import { Passes } from "./pages/Passes";
 import type { Parameter, User } from "./types";
 
-// Weitere Seiten (Passes, Commands) kommen in den nächsten Schritten dazu.
+// Die Seite "Commands" kommt in Schritt 4 dazu.
 const TABS = [
   { id: "dashboard", label: "Dashboard" },
+  { id: "passes", label: "Passes" },
   { id: "alarms", label: "Alarms" },
   { id: "limits", label: "Limits" },
   { id: "log", label: "Log" },
@@ -32,6 +35,7 @@ export default function App() {
   const [userId, setUserId] = useState<string>(() => loadUserId());
   const live = useLiveData(windowMinutes);
   const missionTime = useMissionTime(live.latest, live.status?.clock.speed ?? 1);
+  const passes = usePasses(live.status, missionTime, live.reloadKey);
   const user = users.find((u) => u.id === userId);
 
   useEffect(() => {
@@ -74,6 +78,9 @@ export default function App() {
             >
               {t.label}
               {t.id === "alarms" && unacked > 0 && <span className="tabs__badge">{unacked}</span>}
+              {t.id === "passes" && live.latest?.contact?.in_contact && (
+                <span className="tabs__live" title="Pass in progress">●</span>
+              )}
             </button>
           ))}
           <span className="tabs__spacer" />
@@ -92,10 +99,13 @@ export default function App() {
             events={live.events}
             limits={live.limits}
             randomFaults={live.status?.simulator.random_faults ?? true}
+            passes={passes?.passes ?? []}
+            now={missionTime}
             windowMinutes={windowMinutes}
             onWindowChange={setWindowMinutes}
           />
         )}
+        {tab === "passes" && <Passes data={passes} now={missionTime} latest={live.latest} user={user} />}
         {tab === "alarms" && <Alarms alarms={live.alarms} latest={live.latest} user={user} />}
         {tab === "limits" && <Limits params={params} limits={live.limits} latest={live.latest} user={user} />}
         {tab === "log" && <Log refreshKey={logKey} />}

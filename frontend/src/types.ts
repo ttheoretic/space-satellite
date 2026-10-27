@@ -27,6 +27,48 @@ export interface Frame {
   values: Record<string, number>;
   /** Nur verletzte Messwerte: Messwert → Stufe */
   limits?: Record<string, Severity>;
+  /** Sichtbarkeit von der Bodenstation (fehlt im Vorlauf) */
+  contact?: Contact;
+}
+
+export interface Contact {
+  elevation: number;
+  azimuth: number;
+  range_km: number;
+  in_contact: boolean;
+}
+
+export interface Station {
+  name: string;
+  lat: number;
+  lon: number;
+  alt_m: number;
+  min_elevation: number;
+}
+
+/** Ein Überflug über die Bodenstation */
+export interface Pass {
+  id: string;
+  aos: string; // Acquisition of Signal
+  tca: string; // höchster Punkt
+  los: string; // Loss of Signal
+  duration_s: number;
+  max_elevation: number;
+  aos_azimuth: number;
+  tca_azimuth: number;
+  los_azimuth: number;
+}
+
+export interface PassesResponse {
+  station: Station;
+  generated_at: string;
+  hours: number;
+  tle_source: string;
+  passes: Pass[];
+}
+
+export interface PassTrack extends Pass {
+  track: { t: string; elevation: number; azimuth: number }[];
 }
 
 export type Severity = "warning" | "critical";
@@ -105,7 +147,7 @@ export interface TleStatus {
 
 export interface Status {
   satellite: { name: string; norad_id: number };
-  station: { name: string; lat: number; lon: number; alt_m: number };
+  station: Station;
   clock: { mission_time: string; speed: number; speed_options: number[] };
   tle: TleStatus;
   simulator: { random_faults: boolean };

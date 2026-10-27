@@ -13,7 +13,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 
-from .api import alarms, system, telemetry
+from .api import alarms, passes, system, telemetry
 from .config import settings
 from .db import init_db
 from .mission import mission
@@ -35,6 +35,7 @@ app = FastAPI(title="OrbitDesk API", version="0.1.0", lifespan=lifespan)
 app.include_router(system.router)
 app.include_router(telemetry.router)
 app.include_router(alarms.router)
+app.include_router(passes.router)
 
 
 @app.websocket("/ws")

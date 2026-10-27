@@ -19,6 +19,7 @@ from .config import settings
 from .db import session_scope
 from .limits import AlarmEngine, LimitSet
 from .models import Setting, TelemetryFrame
+from .orbit.passes import GroundStation, PassPredictor, look_angles, pass_track
 from .orbit.tle import TleManager
 from .parameters import PARAMETERS_BY_KEY
 from .simulator.cubesat import CubeSatSimulator
@@ -28,6 +29,8 @@ from .ws import Broadcaster
 log = logging.getLogger(__name__)
 
 CLOCK_KEY = "clock_offset_s"
+STATION_KEY = "ground_station"
+MAX_FAST_FORWARD = timedelta(hours=24)
 
 
 class Mission:
@@ -36,6 +39,10 @@ class Mission:
         self.tle = TleManager()
         self.simulator = CubeSatSimulator(lambda: self.tle.current.satellite)
         self.alarms = AlarmEngine()
+        self.passes = PassPredictor()
+        self.station = GroundStation(settings.station_name, settings.station_lat_deg,
+                                     settings.station_lon_deg, settings.station_alt_m)
+        self._in_contact: bool | None = None
         self.broadcaster = Broadcaster()
         self.latest_frame: dict | None = None
         self._tasks: list[asyncio.Task] = []
@@ -48,6 +55,7 @@ class Mission:
 
     async def start(self) -> None:
         self.alarms.load()
+        self._restore_station()
         self._restore_clock()
         self._backfill_if_empty()
         self._tasks = [
@@ -67,12 +75,7 @@ class Mission:
         now = self.clock.now()
         return {
             "satellite": {"name": settings.satellite_name, "norad_id": settings.norad_id},
-            "station": {
-                "name": settings.station_name,
-                "lat": settings.station_lat_deg,
-                "lon": settings.station_lon_deg,
-                "alt_m": settings.station_alt_m,
-            },
+            "station": self.station.to_dict(),
             "clock": {
                 "mission_time": iso(now),
                 "speed": self.clock.speed,
@@ -102,7 +105,7 @@ class Mission:
         self.simulator = CubeSatSimulator(lambda: self.tle.current.satellite)
         self._save_clock()
         self._backfill_if_empty()
-        await self.broadcaster.broadcast({"type": "reset"})
+        await self.broadcaster.broadcast({"type": "reload"})
         await self.broadcast_status()
 
     # ---------------------------------------------------------- Simulator
@@ -139,6 +142,43 @@ class Mission:
                      enabled=limits.enabled)
         await self.broadcaster.broadcast({"type": "limits", "limits": self.alarms.limits_catalog()})
 
+    # ------------------------------------------------ Überflüge & Station
+    def get_passes(self, hours: float = 48) -> list[dict]:
+        return self.passes.get(self.tle.current.satellite, self.station, self.clock.now(), hours)
+
+    def get_pass_track(self, pass_id: str) -> dict | None:
+        p = next((p for p in self.get_passes(48) if p["id"] == pass_id), None)
+        if p is None:
+            return None
+        track = pass_track(self.tle.current.satellite, self.station,
+                           parse_iso(p["aos"]), parse_iso(p["los"]))
+        return {**p, "track": track}
+
+    async def update_station(self, station: GroundStation, user: str) -> None:
+        station.validate()
+        self.station = station
+        self.passes.invalidate()
+        self._in_contact = None
+        with session_scope() as s:
+            s.merge(Setting(key=STATION_KEY, value=station.to_dict()))
+        audit.record(user, "station.update", self.clock.now(), **station.to_dict())
+        await self.broadcast_status()
+
+    async def jump_to_next_pass(self, lead_s: int = 60) -> dict:
+        """Demo: Missionszeit bis kurz vor den nächsten Überflug vorspulen.
+        Die übersprungene Zeit wird im Schnelldurchlauf simuliert, damit
+        Verlauf, Eklipsen und Alarme lückenlos bleiben."""
+        now = self.clock.now()
+        upcoming = [p for p in self.get_passes(48)
+                    if parse_iso(p["aos"]) > now + timedelta(seconds=lead_s + 5)]
+        if not upcoming:
+            raise ValueError("No upcoming pass in the next 48 hours")
+        target = parse_iso(upcoming[0]["aos"]) - timedelta(seconds=lead_s)
+        if target - now > MAX_FAST_FORWARD:
+            raise ValueError("Next pass is more than 24 hours away")
+        await self._fast_forward(target)
+        return upcoming[0]
+
     async def refresh_tle(self) -> bool:
         ok = await self.tle.refresh_online()
         await self.broadcast_status()
@@ -152,6 +192,7 @@ class Mission:
                 now = self.clock.now()
                 frame = self.source.step_to(now)
                 changed_alarms = self.alarms.process(frame, now)  # ergänzt frame["limits"]
+                frame["contact"] = self._contact(now)
                 self.latest_frame = frame
                 self._store(frame)
                 await self.broadcaster.broadcast({"type": "telemetry", "frame": frame})
@@ -181,6 +222,36 @@ class Mission:
                 log.exception("Fehler bei der Datenpflege")
 
     # ---------------------------------------------------------- Interna
+    def _contact(self, now: datetime) -> dict:
+        """Sichtbarkeit von der Bodenstation; meldet Kontaktbeginn/-ende als Ereignis."""
+        contact = look_angles(self.tle.current.satellite, self.station, now)
+        if self._in_contact is not None and contact["in_contact"] != self._in_contact:
+            text = (f"AOS – contact with {self.station.name}" if contact["in_contact"]
+                    else f"LOS – contact with {self.station.name} ended")
+            self.simulator.add_event("info", text)
+        self._in_contact = contact["in_contact"]
+        return contact
+
+    async def _fast_forward(self, target: datetime) -> None:
+        t = self.clock.now()
+        frames = []
+        while t < target:
+            t = min(t + timedelta(seconds=60), target)
+            frame = self.source.step_to(t, random_faults=False)
+            self.alarms.process(frame, t)
+            frames.append(frame)
+        with session_scope() as s:
+            s.add_all(TelemetryFrame(timestamp=parse_iso(f["t"]), data=f) for f in frames)
+        self.clock.jump_to(target)
+        self._save_clock()
+        self._in_contact = None
+        if frames:
+            self.latest_frame = frames[-1]
+        self.source.pop_new_events()  # stehen im Ereignisprotokoll, nicht einzeln senden
+        log.info("Vorgespult: %d Pakete bis %s", len(frames), iso(target))
+        await self.broadcaster.broadcast({"type": "reload"})
+        await self.broadcast_status()
+
     async def _flush_events(self) -> None:
         for event in self.source.pop_new_events():
             await self.broadcaster.broadcast({"type": "event", "event": event})
@@ -216,6 +287,13 @@ class Mission:
             row = s.get(Setting, CLOCK_KEY)
             offset = float(row.value) if row else 0.0
         self.clock = MissionClock(datetime.now(timezone.utc) + timedelta(seconds=offset))
+
+    def _restore_station(self) -> None:
+        """Zuletzt eingestellte Bodenstation laden (sonst Standard aus config.py)."""
+        with session_scope() as s:
+            row = s.get(Setting, STATION_KEY)
+            if row:
+                self.station = GroundStation(**row.value)
 
     def _save_clock(self) -> None:
         with session_scope() as s:

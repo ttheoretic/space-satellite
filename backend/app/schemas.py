@@ -31,3 +31,13 @@ class AckRequest(BaseModel):
 
 class ToggleRequest(BaseModel):
     enabled: bool
+
+
+class StationUpdate(BaseModel):
+    """Bodenstation: Name, Position (Grad), Höhe (m) und Mindestelevation (Grad)."""
+
+    name: str
+    lat: float
+    lon: float
+    alt_m: float = 0.0
+    min_elevation: float = 5.0

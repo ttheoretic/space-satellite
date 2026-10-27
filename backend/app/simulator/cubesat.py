@@ -123,6 +123,10 @@ class CubeSatSimulator:
         self.seq += 1
         return self._frame(t)
 
+    def add_event(self, level: str, text: str) -> None:
+        """Ereignis von außen ins Bordprotokoll schreiben (z. B. Kontaktbeginn)."""
+        self._event(level, text)
+
     def pop_new_events(self) -> list[dict]:
         """Ereignisse seit dem letzten Aufruf (für den Live-Versand)."""
         ev, self._new_events = self._new_events, []

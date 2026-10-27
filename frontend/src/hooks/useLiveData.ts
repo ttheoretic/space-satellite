@@ -18,7 +18,7 @@ type ServerMessage =
   | { type: "event"; event: SpacecraftEvent }
   | { type: "alarm"; alarm: Alarm }
   | { type: "limits"; limits: LimitRow[] }
-  | { type: "reset" };
+  | { type: "reload" }; // Demo zurückgesetzt oder vorgespult → alles neu laden
 
 export function useLiveData(windowMinutes: number) {
   const [status, setStatus] = useState<Status | null>(null);
@@ -72,7 +72,7 @@ export function useLiveData(windowMinutes: number) {
         case "limits":
           setLimits(msg.limits);
           break;
-        case "reset":
+        case "reload":
           setLatest(null);
           setAlarms([]);
           setReloadKey((k) => k + 1);
@@ -105,7 +105,7 @@ export function useLiveData(windowMinutes: number) {
     };
   }, []);
 
-  return { status, latest, history, events, alarms, limits, connection };
+  return { status, latest, history, events, alarms, limits, connection, reloadKey };
 }
 
 /**

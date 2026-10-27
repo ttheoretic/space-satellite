@@ -1,11 +1,18 @@
-// Statusleiste oben im Dashboard: Betriebsmodus, Sonne/Eklipse, Heizung und
-// Position über der Erde ("Subsatellitenpunkt" = Punkt direkt unter dem Satelliten).
+// Statusleiste oben im Dashboard: Betriebsmodus, Sonne/Eklipse, Heizung,
+// Funkkontakt zur Bodenstation und Position über der Erde
+// ("Subsatellitenpunkt" = Punkt direkt unter dem Satelliten).
 
 import type { ReactNode } from "react";
-import { formatLat, formatLon } from "../format";
-import type { Frame } from "../types";
+import { formatDuration, formatLat, formatLon } from "../format";
+import type { Frame, Pass } from "../types";
 
-export function StatusStrip({ frame }: { frame: Frame | null }) {
+interface Props {
+  frame: Frame | null;
+  next: { pass: Pass; inProgress: boolean } | null;
+  now: number | null;
+}
+
+export function StatusStrip({ frame, next, now }: Props) {
   if (!frame) return <div className="strip strip--empty">Waiting for telemetry…</div>;
   const { mode, eclipse, illumination, heater_on, heater_mode, position } = frame;
 
@@ -30,6 +37,20 @@ export function StatusStrip({ frame }: { frame: Frame | null }) {
       <Item label="Battery heater">
         <span className="strong">{heater_on ? "ON" : "OFF"}</span>
         <span className="muted"> · {heater_mode}</span>
+      </Item>
+      <Item label="Ground contact">
+        {frame.contact?.in_contact ? (
+          <span className="pill pill--good">
+            <span aria-hidden>●</span> IN CONTACT · EL {frame.contact.elevation.toFixed(0)}°
+          </span>
+        ) : next && now !== null && !next.inProgress ? (
+          <span>
+            <span className="muted">Next AOS in </span>
+            <span className="mono">{formatDuration(Date.parse(next.pass.aos) - now)}</span>
+          </span>
+        ) : (
+          <span className="muted">No contact</span>
+        )}
       </Item>
       <Item label="Sub-satellite point">
         <span className="mono">

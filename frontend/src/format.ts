@@ -38,3 +38,20 @@ export function formatAgeDays(days: number): string {
   if (Math.abs(days) < 1) return `${Math.round(days * 24)} h`;
   return `${days.toFixed(1)} d`;
 }
+
+/** Zeitspanne lesbar: "1 h 23 min", "4 min 10 s", "35 s" */
+export function formatDuration(ms: number): string {
+  const total = Math.max(0, Math.round(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  if (h > 0) return `${h} h ${pad(m)} min`;
+  if (m > 0) return `${m} min ${pad(s)} s`;
+  return `${s} s`;
+}
+
+/** Azimut als Himmelsrichtung: 0° → "N", 135° → "SE" */
+export function compass(az: number): string {
+  const dirs = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+  return dirs[Math.round((((az % 360) + 360) % 360) / 45) % 8];
+}

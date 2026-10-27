@@ -35,9 +35,10 @@ USERS: dict[str, User] = {
 
 # Welche Rolle darf was? (Der Engineer darf nur lesen.)
 PERMISSIONS: dict[str, set[str]] = {
-    "operator": {"alarm.ack", "limits.edit", "command.create", "command.schedule", "command.send"},
-    "flight_director": {"alarm.ack", "limits.edit", "command.create", "command.schedule",
-                        "command.approve", "command.send"},
+    "operator": {"alarm.ack", "limits.edit", "station.edit",
+                 "command.create", "command.schedule", "command.send"},
+    "flight_director": {"alarm.ack", "limits.edit", "station.edit",
+                        "command.create", "command.schedule", "command.approve", "command.send"},
     "engineer": set(),
 }
 
