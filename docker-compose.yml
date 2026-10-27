@@ -1,0 +1,21 @@
+# Start:   docker compose up --build
+# Öffnen:  http://localhost:8080
+services:
+  orbitdesk:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      # SQLite-Datenbank und TLE-Cache überleben so einen Neustart des Containers
+      - orbitdesk-data:/data
+    environment:
+      # Beispiele – alle Einstellungen siehe backend/app/config.py
+      ORBITDESK_NORAD_ID: "59112"
+      ORBITDESK_SATELLITE_NAME: "SONATE-2"
+      ORBITDESK_STATION_NAME: "TU Berlin"
+      ORBITDESK_STATION_LAT: "52.51"
+      ORBITDESK_STATION_LON: "13.33"
+    restart: unless-stopped
+
+volumes:
+  orbitdesk-data:
