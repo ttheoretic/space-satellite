@@ -5,6 +5,7 @@
 //  - dünne Linien, dezentes Gitter
 //  - Eklipse-Phasen als graue Hinterlegung, damit man Ursache und Wirkung sieht
 //  - Fadenkreuz mit Tooltip beim Überfahren mit der Maus
+//  - optional Grenzwerte als gestrichelte Linien (gelb = Warnung, rot = kritisch)
 
 import { useMemo } from "react";
 import {
@@ -12,13 +13,15 @@ import {
   Line,
   LineChart,
   ReferenceArea,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
 import { formatNumber, formatTime } from "../format";
-import { CHART } from "../theme";
+import { CHART, STATUS } from "../theme";
+import type { LimitRow } from "../types";
 
 export interface ChartRow {
   x: number; // Zeit in ms (UTC)
@@ -41,10 +44,20 @@ interface Props {
   height?: number;
   /** Wertebereich der y-Achse; Standard: automatisch aus den Daten */
   yDomain?: [number | "auto", number | "auto" | ((dataMax: number) => number)];
+  /** Grenzwerte einzeichnen (nur sinnvoll bei einer einzigen Reihe) */
+  limits?: LimitRow;
 }
 
-export function TrendChart({ title, unit, decimals, data, series, height = 170, yDomain }: Props) {
+export function TrendChart({ title, unit, decimals, data, series, height = 170, yDomain, limits }: Props) {
   const eclipses = useMemo(() => eclipseIntervals(data), [data]);
+  const limitLines = limits?.enabled
+    ? ([
+        [limits.crit_low, "critical"],
+        [limits.warn_low, "warning"],
+        [limits.warn_high, "warning"],
+        [limits.crit_high, "critical"],
+      ] as const).filter(([v]) => v !== null)
+    : [];
   const latest = data[data.length - 1];
 
   return (
@@ -75,6 +88,22 @@ export function TrendChart({ title, unit, decimals, data, series, height = 170, 
             <CartesianGrid stroke={CHART.grid} vertical={false} />
             {eclipses.map(([x1, x2]) => (
               <ReferenceArea key={x1} x1={x1} x2={x2} fill={CHART.eclipse} strokeOpacity={0} ifOverflow="hidden" />
+            ))}
+            {limitLines.map(([y, sev]) => (
+              <ReferenceLine
+                key={`${sev}-${y}`}
+                y={y as number}
+                stroke={sev === "critical" ? STATUS.critical : STATUS.warning}
+                strokeDasharray="4 4"
+                strokeOpacity={0.8}
+                ifOverflow="extendDomain"
+                label={{
+                  value: `${sev === "critical" ? "CRIT" : "WARN"} ${y}`,
+                  position: "insideTopRight",
+                  fill: sev === "critical" ? STATUS.critical : STATUS.warning,
+                  fontSize: 10,
+                }}
+              />
             ))}
             <XAxis
               dataKey="x"

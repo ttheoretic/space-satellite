@@ -73,10 +73,14 @@ button {
 
 /* ---------------------------------------------------------------- Header */
 
-.header {
+/* Kopfzeile + Navigation bleiben beim Scrollen oben */
+.topbar {
   position: sticky;
   top: 0;
   z-index: 20;
+}
+
+.header {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
@@ -207,7 +211,7 @@ button {
   font-weight: 600;
 }
 .btn:disabled {
-  opacity: 0.6;
+  opacity: 0.4;
   cursor: default;
 }
 .btn--ghost {
@@ -300,6 +304,7 @@ button {
 
 .tabs {
   display: flex;
+  align-items: center;
   gap: 4px;
   padding: 0 20px;
   border-bottom: 1px solid var(--border);
@@ -593,4 +598,346 @@ button {
     grid-column: 1 / -1;
     justify-content: flex-start;
   }
+}
+
+/* ======================================================= Schritt 2: Alarme */
+
+.tabs__badge {
+  display: inline-block;
+  margin-left: 6px;
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--critical);
+  color: #fff;
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+}
+.tabs > .alarm-ind,
+.tabs > .user-switch {
+  margin-right: 10px;
+}
+
+/* Alarmstufen-Abzeichen: Symbol + Text, nie nur Farbe */
+.sev {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+.sev--warning {
+  background: var(--warning);
+  color: #111;
+}
+.sev--critical {
+  background: var(--critical);
+  color: #fff;
+}
+
+/* Alarmanzeige in der Navigationsleiste */
+.alarm-ind {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  cursor: pointer;
+}
+.alarm-ind--ok {
+  color: #5fd35f;
+  font-weight: 700;
+}
+.alarm-ind--warning {
+  background: var(--warning);
+  border-color: var(--warning);
+  color: #111;
+}
+.alarm-ind--critical {
+  background: var(--critical);
+  border-color: var(--critical);
+  color: #fff;
+}
+.alarm-ind--neutral {
+  color: var(--text);
+}
+.alarm-ind__unack {
+  padding: 0 6px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.25);
+}
+.alarm-ind--neutral .alarm-ind__unack {
+  background: var(--surface-3);
+}
+/* Unbestätigte Alarme pulsieren dezent – außer der Nutzer wünscht keine Bewegung */
+@media (prefers-reduced-motion: no-preference) {
+  .alarm-ind--unacked.alarm-ind--critical,
+  .alarm-ind--unacked.alarm-ind--warning {
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+}
+@keyframes pulse {
+  50% {
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.12);
+    filter: brightness(1.15);
+  }
+}
+
+/* Personenauswahl */
+.user-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.user-switch select {
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font: inherit;
+  font-size: 13px;
+}
+.user-switch__avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--surface-3);
+}
+.user-switch__avatar--operator {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+.user-switch__avatar--flight_director {
+  background: #7c6cf0;
+  color: #fff;
+}
+
+/* Kacheln mit Grenzwertverletzung */
+.tile__sub .sev {
+  margin-top: 2px;
+}
+.tile--warning {
+  border-color: var(--warning);
+  background: rgba(250, 178, 25, 0.1);
+}
+.tile--critical {
+  border-color: var(--critical);
+  background: rgba(208, 59, 59, 0.16);
+}
+.tile--warning .tile__value .mono {
+  color: #ffd27a;
+}
+.tile--critical .tile__value .mono {
+  color: #ff9a9a;
+}
+
+/* Seiten mit Tabellen */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.page__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+.page__title {
+  margin: 0 0 4px;
+  font-size: 20px;
+}
+.page__head p {
+  margin: 0;
+  max-width: 780px;
+}
+.empty {
+  margin: 4px 0;
+  color: #5fd35f;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.table th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border-strong);
+}
+.table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.table--compact td {
+  padding: 5px 10px;
+}
+.table .num {
+  text-align: right;
+}
+.row--unacked.row--warning td:first-child {
+  box-shadow: inset 3px 0 0 var(--warning);
+}
+.row--unacked.row--critical td:first-child {
+  box-shadow: inset 3px 0 0 var(--critical);
+}
+.row--unacked td {
+  background: rgba(255, 255, 255, 0.025);
+}
+.row--warning td:first-child {
+  box-shadow: inset 3px 0 0 var(--warning);
+}
+.row--critical td:first-child {
+  box-shadow: inset 3px 0 0 var(--critical);
+}
+
+.state {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+.state--active {
+  color: var(--text);
+}
+.state--cleared {
+  color: #5fd35f;
+}
+
+.notice--info {
+  background: rgba(57, 135, 229, 0.1);
+  border: 1px solid rgba(57, 135, 229, 0.35);
+  color: #b9d4f6;
+}
+.notice--error {
+  background: rgba(208, 59, 59, 0.12);
+  border: 1px solid rgba(208, 59, 59, 0.45);
+  color: #ffb3b3;
+}
+
+.btn--small {
+  padding: 3px 10px;
+  font-size: 12px;
+}
+
+/* Grenzwert-Editor */
+.limits {
+  table-layout: fixed;
+}
+.limits th:first-child {
+  width: 26%;
+}
+.limits th:nth-child(7) {
+  width: 64px;
+}
+.limits th:last-child {
+  width: 150px;
+}
+.th-warn {
+  color: var(--warning) !important;
+}
+.th-crit {
+  color: #ff8a8a !important;
+}
+.num-input {
+  width: 84px;
+  padding: 4px 6px;
+  text-align: right;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+}
+.num-input--warn {
+  border-left: 3px solid var(--warning);
+}
+.num-input--crit {
+  border-left: 3px solid var(--critical);
+}
+.num-input:disabled {
+  color: var(--text-2);
+  background: transparent;
+  border-color: var(--border);
+}
+.limits__actions {
+  white-space: nowrap;
+  text-align: right;
+}
+.limits__actions .btn + .btn {
+  margin-left: 6px;
+}
+.limits__error {
+  color: #ffb3b3;
+  font-size: 12px;
+}
+
+/* Fehlersteuerung (Demo) */
+.faults__list {
+  list-style: none;
+  margin: 10px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.fault {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2);
+}
+.fault--active {
+  border-color: rgba(250, 178, 25, 0.5);
+}
+.fault__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+.fault__state {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--warning);
+}
+.fault__recovery {
+  margin-top: 4px;
+  color: var(--text-2);
+}
+.faults__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
 }

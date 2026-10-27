@@ -51,9 +51,19 @@ class MissionClock:
         self._anchor_mission = mission_time
 
 
+def as_utc(t: datetime) -> datetime:
+    """SQLite liefert Zeiten ohne Zeitzone zurück. Wir speichern immer UTC,
+    also hängen wir die Zeitzone wieder an (sonst würde die Ortszeit angenommen)."""
+    return t.replace(tzinfo=timezone.utc) if t.tzinfo is None else t.astimezone(timezone.utc)
+
+
 def iso(t: datetime) -> str:
     """ISO-8601-Zeitstempel mit Millisekunden – von allen Browsern sicher lesbar."""
-    return t.astimezone(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+    return as_utc(t).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+
+def iso_or_none(t: datetime | None) -> str | None:
+    return iso(t) if t else None
 
 
 def parse_iso(s: str) -> datetime:

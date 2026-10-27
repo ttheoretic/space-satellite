@@ -1,12 +1,13 @@
 // Zentraler Daten-Hook: verbindet sich per WebSocket mit dem Backend und hält
-// Status, letztes Telemetrie-Paket, Verlauf und Bordereignisse aktuell.
+// Status, letztes Telemetrie-Paket, Verlauf, Bordereignisse, Alarme und
+// Grenzwerte aktuell.
 //
 // Bricht die Verbindung ab (z. B. Backend neu gestartet), versucht der Hook es
 // automatisch erneut – mit wachsender Wartezeit (1 s, 2 s, 4 s … max. 10 s).
 
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
-import type { ConnectionState, Frame, SpacecraftEvent, Status } from "../types";
+import type { Alarm, ConnectionState, Frame, LimitRow, SpacecraftEvent, Status } from "../types";
 
 /** Höchstzahl der Punkte pro Diagramm – mehr bringt optisch nichts, kostet aber Rechenzeit. */
 const MAX_POINTS = 600;
@@ -15,6 +16,8 @@ type ServerMessage =
   | { type: "telemetry"; frame: Frame }
   | { type: "status"; status: Status }
   | { type: "event"; event: SpacecraftEvent }
+  | { type: "alarm"; alarm: Alarm }
+  | { type: "limits"; limits: LimitRow[] }
   | { type: "reset" };
 
 export function useLiveData(windowMinutes: number) {
@@ -22,6 +25,8 @@ export function useLiveData(windowMinutes: number) {
   const [latest, setLatest] = useState<Frame | null>(null);
   const [history, setHistory] = useState<Frame[]>([]);
   const [events, setEvents] = useState<SpacecraftEvent[]>([]);
+  const [alarms, setAlarms] = useState<Alarm[]>([]);
+  const [limits, setLimits] = useState<LimitRow[]>([]);
   const [connection, setConnection] = useState<ConnectionState>("connecting");
   // Wird hochgezählt, wenn der Verlauf neu geladen werden soll
   const [reloadKey, setReloadKey] = useState(0);
@@ -35,6 +40,8 @@ export function useLiveData(windowMinutes: number) {
     let cancelled = false;
     api.history(windowMinutes, MAX_POINTS).then((h) => !cancelled && setHistory(h)).catch(() => {});
     api.events().then((e) => !cancelled && setEvents(e)).catch(() => {});
+    api.alarms().then((a) => !cancelled && setAlarms(a)).catch(() => {});
+    api.limits().then((l) => !cancelled && setLimits(l)).catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -59,8 +66,15 @@ export function useLiveData(windowMinutes: number) {
         case "event":
           setEvents((prev) => [msg.event, ...prev].slice(0, 200));
           break;
+        case "alarm":
+          setAlarms((prev) => upsertAlarm(prev, msg.alarm));
+          break;
+        case "limits":
+          setLimits(msg.limits);
+          break;
         case "reset":
           setLatest(null);
+          setAlarms([]);
           setReloadKey((k) => k + 1);
           break;
       }
@@ -91,7 +105,17 @@ export function useLiveData(windowMinutes: number) {
     };
   }, []);
 
-  return { status, latest, history, events, connection };
+  return { status, latest, history, events, alarms, limits, connection };
+}
+
+/**
+ * Aktualisiert einen Alarm in der Liste der offenen Alarme. Ist er abgeklungen
+ * und bestätigt, ist er erledigt und fällt heraus (Archiv).
+ */
+function upsertAlarm(prev: Alarm[], alarm: Alarm): Alarm[] {
+  const rest = prev.filter((a) => a.id !== alarm.id);
+  if (!alarm.active && alarm.acknowledged) return rest;
+  return [alarm, ...rest].sort((a, b) => Date.parse(b.raised_at) - Date.parse(a.raised_at));
 }
 
 /**

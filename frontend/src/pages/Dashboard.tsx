@@ -2,13 +2,13 @@
 // und Simulator-Steuerung.
 
 import { useMemo } from "react";
-import { api } from "../api";
 import { EventLog } from "../components/EventLog";
+import { FaultPanel } from "../components/FaultPanel";
 import { StatusStrip } from "../components/StatusStrip";
 import { type ChartRow, TrendChart } from "../components/TrendChart";
 import { ValueTile } from "../components/ValueTile";
 import { CHART } from "../theme";
-import type { Frame, Parameter, SpacecraftEvent } from "../types";
+import type { Frame, LimitRow, Parameter, SpacecraftEvent } from "../types";
 
 const WINDOWS = [
   { minutes: 30, label: "30 min" },
@@ -23,12 +23,16 @@ interface Props {
   latest: Frame | null;
   history: Frame[];
   events: SpacecraftEvent[];
+  limits: LimitRow[];
+  randomFaults: boolean;
   windowMinutes: number;
   onWindowChange: (minutes: number) => void;
 }
 
-export function Dashboard({ params, latest, history, events, windowMinutes, onWindowChange }: Props) {
+export function Dashboard(props: Props) {
+  const { params, latest, history, events, limits, randomFaults, windowMinutes, onWindowChange } = props;
   const P = useMemo(() => Object.fromEntries(params.map((p) => [p.key, p])), [params]);
+  const L = useMemo(() => Object.fromEntries(limits.map((l) => [l.param_key, l])), [limits]);
 
   // Verlauf + jüngstes Paket in Diagrammzeilen umwandeln
   const rows = useMemo<ChartRow[]>(() => {
@@ -42,9 +46,14 @@ export function Dashboard({ params, latest, history, events, windowMinutes, onWi
   if (!params.length) return <p className="muted">Loading…</p>;
 
   const v = latest?.values ?? {};
+  const status = latest?.limits ?? {};
   // Kacheln einer Gruppe; fehlende Parameter werden übersprungen
   const tiles = (keys: string[], subs: Record<string, string | undefined> = {}) =>
-    keys.filter((k) => P[k]).map((k) => <ValueTile key={k} param={P[k]} value={v[k]} sub={subs[k]} />);
+    keys
+      .filter((k) => P[k])
+      .map((k) => (
+        <ValueTile key={k} param={P[k]} value={v[k]} status={status[k]} limits={L[k]} sub={subs[k]} />
+      ));
 
   const current = v.battery_current;
   const currentSub = current === undefined ? undefined : current > 0.05 ? "charging" : current < -0.05 ? "discharging" : "idle";
@@ -90,22 +99,24 @@ export function Dashboard({ params, latest, history, events, windowMinutes, onWi
       </div>
 
       <div className="charts">
-        <TrendChart title="State of Charge" unit="%" decimals={1} data={rows}
+        <TrendChart title="State of Charge" unit="%" decimals={1} data={rows} limits={L.battery_soc}
           series={[{ key: "battery_soc", label: "SoC", color: BLUE }]} />
         <TrendChart title="Power Balance" unit="W" decimals={1} data={rows}
           series={[
             { key: "solar_power", label: "Solar", color: BLUE },
             { key: "power_consumption", label: "Power draw", color: ORANGE },
           ]} />
-        <TrendChart title="Temperatures" unit="°C" decimals={1} data={rows}
+        <TrendChart title="Battery Temperature" unit="°C" decimals={1} data={rows} limits={L.battery_temp}
+          series={[{ key: "battery_temp", label: "Battery", color: BLUE }]} />
+        <TrendChart title="Structure Temperatures" unit="°C" decimals={1} data={rows}
           series={[
-            { key: "battery_temp", label: "Battery", color: BLUE },
             { key: "obc_temp", label: "OBC", color: ORANGE },
             { key: "panel_temp", label: "Panel", color: AQUA },
           ]} />
-        <TrendChart title="Pointing Error" unit="°" decimals={2} data={rows}
-          yDomain={[0, (max) => Math.max(2, Math.ceil(max))]}
+        <TrendChart title="Pointing Error" unit="°" decimals={2} data={rows} limits={L.pointing_error}
           series={[{ key: "pointing_error", label: "Pointing error", color: BLUE }]} />
+        <TrendChart title="Angular Rate" unit="°/s" decimals={3} data={rows} limits={L.angular_rate}
+          series={[{ key: "angular_rate", label: "Angular rate", color: BLUE }]} />
       </div>
 
       <div className="panels panels--bottom">
@@ -115,20 +126,7 @@ export function Dashboard({ params, latest, history, events, windowMinutes, onWi
         </section>
         <section className="panel">
           <h2 className="panel__title">Simulation</h2>
-          <p className="muted small">
-            The spacecraft is simulated along its orbit from the TLE. Eclipses, battery charge and
-            temperatures follow from orbit physics.
-          </p>
-          <button
-            className="btn btn--ghost"
-            onClick={() => {
-              if (window.confirm("Reset the demo? Telemetry history is cleared and mission time returns to now.")) {
-                api.resetDemo();
-              }
-            }}
-          >
-            Reset demo
-          </button>
+          <FaultPanel frame={latest} randomFaults={randomFaults} />
         </section>
       </div>
     </div>

@@ -8,8 +8,9 @@ New-Space-Startups. Dieser Prototyp dient als Demo für Kundengespräche.
 > Temperaturen erzeugt aber ein Simulator. Die Kopfzeile zeigt deshalb dauerhaft
 > **„SIMULATED TELEMETRY“**.
 
-**Stand: Schritt 1 von 4** – Simulator und Live-Dashboard.
-Als Nächstes folgen Grenzwerte & Alarme, Überflugplanung und die Befehlsliste.
+**Stand: Schritt 2 von 4** – Simulator, Live-Dashboard, Grenzwerte & Alarme,
+Demo-Personen mit Rollen und Betriebsprotokoll.
+Als Nächstes folgen Überflugplanung und Befehlsliste.
 
 ---
 
@@ -139,19 +140,56 @@ unter http://localhost:8000/docs bzw. http://localhost:8080/docs.
   Zeitraffer einen Tag vor, wird die TLE auch einen Tag „älter“ – genau so
   wächst in der Realität die Ungenauigkeit der Vorhersage.
 
-**Tab-Leiste** – rechts der Verbindungsstatus zum Server (`LIVE` /
-`RECONNECTING`). Bricht die Verbindung ab, verbindet sich die Seite selbst neu.
+**Navigationsleiste** – Seiten *Dashboard*, *Alarms*, *Limits*, *Log*; rechts:
+- **Alarmanzeige**: `✓ NO ALARMS`, gelb (Warnung) oder rot (kritisch) mit Anzahl
+  aktiver und unbestätigter Alarme. Unbestätigte Alarme pulsieren; ein Klick
+  öffnet die Alarmliste. Auch der Browser-Tab zeigt die Anzahl: „(2) OrbitDesk“.
+- **Personenauswahl** (Demo ohne Login):
+
+  | Person | Rolle | Darf |
+  |---|---|---|
+  | Anna | Operator | Alarme bestätigen, Grenzwerte ändern (ab Schritt 4: Befehle anlegen und senden) |
+  | Ben | Flight Director | wie Operator, zusätzlich Befehle freigeben (ab Schritt 4) |
+  | Clara | Engineer | nur lesen |
+
+  Die Rechte prüft das **Backend** bei jeder Aktion – nicht nur die Oberfläche.
+- **Verbindungsstatus** zum Server (`LIVE` / `RECONNECTING`). Bricht die
+  Verbindung ab, verbindet sich die Seite selbst neu.
 
 **Dashboard**
 - **Statusleiste:** Betriebsmodus (NOMINAL/SAFE), Sonne oder Erdschatten,
   Batterieheizung, Position über der Erde und Bahnhöhe
-- **Power / Thermal / Attitude:** aktuelle Messwerte je Subsystem. Mit der Maus
-  über einer Kachel erscheint eine Erklärung
+- **Power / Thermal / Attitude:** aktuelle Messwerte je Subsystem. Verletzt ein
+  Wert eine Grenze, färbt sich die Kachel **gelb (▲ WARNING)** oder
+  **rot (◆ CRITICAL)** – immer mit Symbol und Text, nie nur über die Farbe. Mit der
+  Maus über einer Kachel erscheinen Erklärung und Grenzwerte
 - **Trends:** Verlaufsdiagramme für 30 min, 3 h oder 12 h. Grau hinterlegte
-  Bereiche = Eklipse. So sieht man Ursache und Wirkung: Eintritt in den Schatten
+  Bereiche = Eklipse, gestrichelte Linien = Grenzwerte (gelb/rot). So sieht man Ursache und Wirkung: Eintritt in den Schatten
   → Solarleistung fällt auf 0 → Ladezustand sinkt → Panels kühlen ab
 - **Onboard Events:** Ereignisse an Bord (Eklipse, Moduswechsel, Fehler)
-- **Simulation → Reset demo:** setzt Verlauf und Missionszeit zurück
+- **Simulation (Demo controls):** Fehler gezielt auslösen (*Trigger*), alle
+  Fehler beheben, Zufallsfehler ein/aus, Demo zurücksetzen. Bei aktivem Fehler
+  steht dabei, wie man ihn im echten Betrieb beheben würde.
+
+**Alarms** – offene Alarme mit Stufe, Zustand (`ACTIVE` / `BACK TO NORMAL`),
+Wert beim Auslösen und aktuell, verletzter Grenze und Zeit. Ein Alarm bleibt in
+der Liste, bis sein Wert wieder gut ist **und** jemand ihn bestätigt hat – so
+geht auch ein kurzer Ausreißer nicht unbemerkt verloren. Darunter das Archiv.
+
+Regeln der Alarmlogik:
+- Verschlechterung wird sofort gemeldet; eine Eskalation von Warnung auf
+  kritisch muss **erneut bestätigt** werden.
+- **Hysterese:** Ein Alarm klingt erst ab, wenn der Wert ein kleines Stück (2 %
+  der Spanne zwischen den Grenzen) zurück im guten Bereich ist. Sonst würde ein
+  rauschender Wert an der Grenze ständig neue Alarme erzeugen („Alarmflattern“).
+
+**Limits** – Grenzwert-Editor: pro Messwert kritisch/Warnung unten und oben,
+leeres Feld = keine Grenze, Haken = Grenzwerte aktiv. *Default* stellt die
+Standardwerte wieder her. Das Backend prüft die Reihenfolge
+(kritisch unten < Warnung unten < Warnung oben < kritisch oben).
+
+**Log** – Betriebsprotokoll: jede Aktion (Grenzwert geändert, Alarm bestätigt)
+mit Person, Missionszeit und echter Uhrzeit.
 
 Beim allerersten Start werden die letzten 3 Stunden „vorsimuliert“, damit die
 Diagramme sofort Kurven zeigen.
@@ -160,18 +198,32 @@ Diagramme sofort Kurven zeigen.
 
 ## Demo-Drehbuch
 
-Ein Vorschlag für ein Kundengespräch (wird mit jedem Bauschritt erweitert):
+Ein Vorschlag für ein Kundengespräch (ca. 5 Minuten, wird mit jedem Bauschritt
+erweitert). Vorher unter *Simulation* „Random faults“ ausschalten, damit nichts
+Unerwartetes passiert.
 
-1. Dashboard zeigen, auf **SIMULATED TELEMETRY** und die **TLE-Anzeige**
-   hinweisen: „Die Bahn ist die echte von SONATE-2, aktuell von CelesTrak.“
-2. Diagramm **State of Charge** erklären: Sägezahn = Laden in der Sonne,
-   Entladen im Schatten.
-3. Auf **60×** schalten, Fenster **30 min**: Eintritt in die Eklipse live
-   verfolgen – Solarleistung fällt, Panel-Temperatur sinkt, die Heizung
-   schaltet sich ein.
-4. Wieder auf **1×** stellen.
+1. **Überblick:** Dashboard zeigen, auf **SIMULATED TELEMETRY** und die
+   **TLE-Anzeige** hinweisen: „Die Bahn ist die echte von SONATE-2, aktuell von
+   CelesTrak.“
+2. **Orbit-Physik:** Diagramm *State of Charge* erklären – Sägezahn = Laden in
+   der Sonne, Entladen im Schatten. Auf **60×** und Fenster **30 min** schalten
+   und den Eintritt in die Eklipse live zeigen.
+3. **Anomalie:** Unter *Simulation* „Reaction wheel anomaly“ auslösen. Nach
+   wenigen Sekunden taumelt der Satellit: Kacheln *Pointing Error* und *Angular
+   Rate* werden rot, die Alarmanzeige pulsiert, die Solarleistung sinkt.
+4. **Vier-Augen-Prinzip light:** Auf **Clara (Engineer)** wechseln → *Alarms*:
+   Bestätigen ist gesperrt. Auf **Anna (Operator)** wechseln und bestätigen.
+5. **Nachvollziehbarkeit:** *Log* öffnen – wer hat wann bestätigt.
+6. **Konfigurierbar:** *Limits* öffnen und eine Grenze ändern; erscheint sofort
+   im Protokoll.
+7. „Clear all faults“, wieder auf **1×**.
 
-*(Ab Schritt 2: Fehler auslösen → Alarm → Bestätigen.)*
+Alternative Geschichte mit Bezug zur Physik: „Battery heater thermostat
+failure“ auslösen, auf 60× schalten – in der nächsten Eklipse kühlt die
+Batterie unter 0 °C (Warnung) und −5 °C (kritisch) ab und erholt sich in der
+Sonne wieder (`BACK TO NORMAL`).
+
+*(Ab Schritt 4: Den Fehler per Befehl beheben – anlegen, freigeben, im Überflug senden.)*
 
 ---
 
@@ -247,10 +299,14 @@ space-satellite/
 │   │   ├── clock.py            Missionsuhr mit Zeitraffer
 │   │   ├── mission.py          Missionskern: Hintergrundschleifen, Speichern, Verteilen
 │   │   ├── parameters.py       Katalog der Messwerte (Einheit, Standard-Grenzwerte)
+│   │   ├── limits.py           Grenzwertprüfung & Alarmlogik (mit Hysterese)
+│   │   ├── users.py            Demo-Personen und Rollenrechte
+│   │   ├── audit.py            Betriebsprotokoll (wer, wann, was)
+│   │   ├── sources.py          Schnittstelle "Telemetrie-Quelle" (Simulator ↔ echte Bodenstation)
 │   │   ├── db.py, models.py    Datenbank (SQLAlchemy) und Tabellen
 │   │   ├── ws.py               WebSocket-Verteiler
 │   │   ├── schemas.py          Formate der API-Anfragen
-│   │   ├── api/                REST-Endpunkte (system, telemetry)
+│   │   ├── api/                REST-Endpunkte (system, telemetry, alarms)
 │   │   ├── orbit/tle.py        TLE laden (CelesTrak → Cache → Ersatz-TLE)
 │   │   └── simulator/
 │   │       ├── cubesat.py      Zustandsmodell des CubeSats
@@ -263,8 +319,8 @@ space-satellite/
         ├── brand.ts            ★ Produktname + Akzentfarbe
         ├── App.tsx             Kopfzeile, Tabs, Seiten
         ├── hooks/useLiveData.ts  WebSocket-Verbindung mit Auto-Reconnect
-        ├── components/         Header, Kacheln, Diagramme, Statusleiste …
-        ├── pages/Dashboard.tsx
+        ├── components/         Header, Kacheln, Diagramme, Alarmanzeige, Personenauswahl …
+        ├── pages/              Dashboard, Alarms, Limits, Log
         └── styles/theme.css    dunkles Kontrollraum-Design
 ```
 
@@ -281,7 +337,8 @@ pytest
 
 Die Tests prüfen u. a.: gültige TLE und Prüfsummen, Sonnenabstand und
 Schattengeometrie, realistischen Eklipse-Anteil (25–40 % des Orbits),
-Fehlerbilder (Heizungsausfall kühlt die Batterie unter 0 °C) und die API.
+Fehlerbilder (Heizungsausfall kühlt die Batterie unter 0 °C), Hysterese und
+Eskalation der Alarme, Rollenrechte (Engineer darf nichts ändern) und die API.
 
 ---
 
@@ -305,6 +362,10 @@ Fehlerbilder (Heizungsausfall kühlt die Batterie unter 0 °C) und die API.
 | **FDIR** | *Fault Detection, Isolation and Recovery* – Bordsoftware, die Fehler selbst erkennt und den Satelliten schützt |
 | **SAFE-Modus** | Sicherheitsmodus: Nutzlast aus, Satellit wartet auf Anweisungen vom Boden |
 | **Latch-up** | Kurzschluss in einem Chip, ausgelöst durch ein energiereiches Teilchen aus der Weltraumstrahlung |
+| **Grenzwert (Limit)** | Wert, ab dem ein Messwert als auffällig (Warnung) oder gefährlich (kritisch) gilt |
+| **Hysterese** | Kleiner Sicherheitsabstand, damit ein Alarm bei rauschenden Werten nicht ständig an- und ausgeht |
+| **Quittieren / Bestätigen** | Ein Mensch bestätigt, dass er den Alarm gesehen hat |
+| **Audit-Log** | Unveränderliches Protokoll aller Bedienaktionen |
 | **UTC** | Koordinierte Weltzeit – in der Raumfahrt die gemeinsame Zeitbasis |
 
 ---
@@ -316,7 +377,8 @@ Fehlerbilder (Heizungsausfall kühlt die Batterie unter 0 °C) und die API.
 - Die eingebaute Ersatz-TLE ist eine **Annäherung** an die Bahn von SONATE-2
   (sonnensynchron, ~520 km). Für realistische Bahn- und Überflugdaten wird die
   aktuelle TLE von CelesTrak verwendet, sobald Internet verfügbar ist.
-- Kein Login; Personen und Rollen werden ab Schritt 2 nur für die Demo
-  ausgewählt.
+- Kein Login: Die Person wird nur ausgewählt (Kopffeld `X-OrbitDesk-User`).
+  Für das Produkt wird an genau einer Stelle (`backend/app/users.py`,
+  `current_user`) echtes Login eingesetzt; alle Rechteprüfungen bleiben gleich.
 - Datenbank-Tabellen werden beim Start automatisch angelegt (keine
   Migrationen). Für ein Produkt würde man Alembic einsetzen.

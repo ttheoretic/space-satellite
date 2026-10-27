@@ -25,6 +25,68 @@ export interface Frame {
   faults: string[];
   position: { lat: number; lon: number; alt_km: number };
   values: Record<string, number>;
+  /** Nur verletzte Messwerte: Messwert → Stufe */
+  limits?: Record<string, Severity>;
+}
+
+export type Severity = "warning" | "critical";
+
+export interface Alarm {
+  id: number;
+  param_key: string;
+  param_label: string;
+  unit: string;
+  decimals: number;
+  severity: Severity; // höchste erreichte Stufe
+  current: Severity | "ok"; // aktuelle Stufe
+  active: boolean;
+  acknowledged: boolean;
+  limit_text: string;
+  value_at_raise: number;
+  last_value: number;
+  raised_at: string;
+  cleared_at: string | null;
+  acknowledged_at: string | null;
+  acknowledged_by: string | null;
+}
+
+export interface LimitValues {
+  crit_low: number | null;
+  warn_low: number | null;
+  warn_high: number | null;
+  crit_high: number | null;
+  enabled: boolean;
+}
+
+export interface LimitRow extends LimitValues {
+  param_key: string;
+  default: LimitValues;
+  updated_by: string | null;
+  updated_at: string | null;
+}
+
+export interface User {
+  id: string;
+  name: string;
+  role: "operator" | "flight_director" | "engineer";
+  role_label: string;
+  permissions: string[];
+}
+
+export interface FaultType {
+  key: string;
+  label: string;
+  description: string;
+  recovery: string;
+}
+
+export interface AuditEntry {
+  id: number;
+  mission_time: string;
+  real_time: string;
+  user: string;
+  action: string;
+  details: Record<string, unknown>;
 }
 
 export interface TleStatus {
