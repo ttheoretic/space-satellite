@@ -164,6 +164,24 @@ class CubeSatSimulator:
         else:
             self._event("info", "ADCS reset – no fault present")
 
+    def send_command(self, code: str, args: dict) -> str:
+        """Führt einen (simuliert gefunkten) Befehl aus und liefert die Antwort
+        des Satelliten. Die Befehle sind in app/commands.py beschrieben."""
+        if code == "PING":
+            self._event("info", "PONG – spacecraft alive")
+            return "PONG received"
+        if code == "SET_MODE":
+            self.set_mode(args["mode"])
+            return f"ACK – mode is now {self.state.mode}"
+        if code == "HEATER_MODE":
+            self.set_heater_mode(args["mode"])
+            return f"ACK – battery heater {args['mode']}"
+        if code == "RESET_ADCS":
+            had_fault = "adcs_fault" in self.state.faults
+            self.reset_adcs()
+            return "ACK – ADCS restarted, detumbling" if had_fault else "ACK – ADCS restarted"
+        raise ValueError(f"Unknown command {code}")
+
     # ----------------------------------------------------------- Physik
     def _integrate(self, t: datetime, dt: float, random_faults: bool) -> None:
         s = self.state

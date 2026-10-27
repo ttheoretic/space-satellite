@@ -92,3 +92,36 @@ class AuditEntry(Base):
     user: Mapped[str] = mapped_column(String(32))
     action: Mapped[str] = mapped_column(String(64))
     details: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+
+class Command(Base):
+    """
+    Ein Befehl an den Satelliten und sein Weg durch den Freigabeprozess:
+
+      awaiting_approval → approved → sent
+              │               │
+              └→ rejected     └→ (cancelled)
+
+    Die Freigabe bezieht sich auf den Inhalt (Befehl + Argumente). Der Inhalt
+    lässt sich danach nicht mehr ändern – nur der Überflug, in dem gesendet wird.
+    """
+
+    __tablename__ = "commands"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    code: Mapped[str] = mapped_column(String(32))
+    args: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    comment: Mapped[str] = mapped_column(String(500), default="")
+    status: Mapped[str] = mapped_column(String(24), index=True)
+    # Zugewiesener Überflug (Kennung und Zeitfenster werden mitgespeichert)
+    pass_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    pass_aos: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    pass_los: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_by: Mapped[str] = mapped_column(String(32))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    decided_by: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    reject_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    sent_by: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    result: Mapped[str | None] = mapped_column(String(500), nullable=True)

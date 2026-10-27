@@ -10,6 +10,12 @@ const ACTION_LABEL: Record<string, string> = {
   "alarm.ack": "Acknowledged alarm",
   "limits.update": "Changed limits",
   "station.update": "Changed ground station",
+  "command.create": "Created command",
+  "command.schedule": "Scheduled command",
+  "command.approve": "Approved command",
+  "command.reject": "Rejected command",
+  "command.send": "Sent command",
+  "command.cancel": "Cancelled command",
 };
 
 export function Log({ refreshKey }: { refreshKey: string }) {
@@ -68,6 +74,15 @@ function describe(e: AuditEntry): string {
     return `${d.label ?? d.param}: crit low ${fmt("crit_low")} · warn low ${fmt("warn_low")} · warn high ${fmt(
       "warn_high",
     )} · crit high ${fmt("crit_high")}${d.enabled === false ? " · disabled" : ""}`;
+  }
+  if (e.action.startsWith("command.")) {
+    const extra = [
+      d.pass_id && `pass ${d.pass_id}`,
+      d.comment && `“${d.comment}”`,
+      d.reason && `reason: ${d.reason}`,
+      d.result && `spacecraft: ${d.result}`,
+    ].filter(Boolean);
+    return [d.command, ...extra].join(" · ");
   }
   if (e.action === "station.update") {
     return `${d.name}: ${d.lat}° N, ${d.lon}° E, ${d.alt_m} m, min. elevation ${d.min_elevation}°`;

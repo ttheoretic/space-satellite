@@ -3,6 +3,8 @@
 import type {
   Alarm,
   AuditEntry,
+  Command,
+  CommandDef,
   FaultType,
   Frame,
   LimitRow,
@@ -64,6 +66,17 @@ export const api = {
   passes: (hours = 48) => request<PassesResponse>(`/api/passes?hours=${hours}`),
   pass: (id: string) => request<PassTrack>(`/api/passes/${id}`),
   jumpToNextPass: () => post("/api/sim/jump-to-next-pass"),
+
+  // Befehle
+  commandCatalog: () => request<CommandDef[]>("/api/commands/catalog"),
+  commands: () => request<Command[]>("/api/commands"),
+  createCommand: (body: { code: string; args: Record<string, string>; pass_id: string | null; comment: string }) =>
+    post<Command>("/api/commands", body),
+  scheduleCommand: (id: number, passId: string) => post<Command>(`/api/commands/${id}/schedule`, { pass_id: passId }),
+  approveCommand: (id: number) => post<Command>(`/api/commands/${id}/approve`),
+  rejectCommand: (id: number, reason: string) => post<Command>(`/api/commands/${id}/reject`, { reason }),
+  sendCommand: (id: number) => post<Command>(`/api/commands/${id}/send`),
+  cancelCommand: (id: number) => post<Command>(`/api/commands/${id}/cancel`),
 
   // Demo-Steuerung
   setSpeed: (speed: number) => post("/api/sim/speed", { speed }),

@@ -1071,3 +1071,139 @@ button {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ================================================== Schritt 4: Befehle */
+
+.tabs__badge--info {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.contact-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.contact-banner--live {
+  border-color: rgba(12, 163, 12, 0.6);
+  background: rgba(12, 163, 12, 0.07);
+}
+
+.commands-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: 16px;
+}
+.cmdform {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cmdform select,
+.cmd-actions__pass {
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+}
+.cmdform__desc {
+  margin: -4px 0 0;
+}
+.cmdform .segmented {
+  align-self: flex-start;
+}
+.cmdform__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.steps {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--text-2);
+}
+.steps strong {
+  color: var(--text);
+}
+
+.cmdtable td {
+  vertical-align: top;
+}
+.row--ready td {
+  background: rgba(12, 163, 12, 0.06);
+}
+.cstatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  border: 1px solid var(--border-strong);
+}
+.cstatus--awaiting_approval {
+  color: var(--text);
+  border-style: dashed;
+}
+.cstatus--approved {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+.cstatus--sent {
+  color: #5fd35f;
+  border-color: rgba(12, 163, 12, 0.6);
+}
+.cstatus--rejected,
+.cstatus--cancelled {
+  color: var(--muted);
+}
+.cmd-result {
+  color: #5fd35f;
+  margin-top: 2px;
+}
+.cmd-reject {
+  color: var(--text-2);
+  margin-top: 2px;
+}
+.cmd-missed {
+  color: var(--warning);
+}
+.cmd-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.cmd-actions__pass {
+  max-width: 190px;
+  font-size: 12px;
+  padding: 3px 6px;
+}
+.btn--send {
+  background: var(--good);
+  color: #fff;
+}
+
+@media (max-width: 1200px) {
+  .commands-top {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

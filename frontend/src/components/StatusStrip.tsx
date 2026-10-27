@@ -12,6 +12,8 @@ interface Props {
   now: number | null;
 }
 
+const HEATER_MODE_LABEL = { AUTO: "auto", ON: "manual", OFF: "manual" } as const;
+
 export function StatusStrip({ frame, next, now }: Props) {
   if (!frame) return <div className="strip strip--empty">Waiting for telemetry…</div>;
   const { mode, eclipse, illumination, heater_on, heater_mode, position } = frame;
@@ -36,7 +38,7 @@ export function StatusStrip({ frame, next, now }: Props) {
       </Item>
       <Item label="Battery heater">
         <span className="strong">{heater_on ? "ON" : "OFF"}</span>
-        <span className="muted"> · {heater_mode}</span>
+        <span className="muted"> · {HEATER_MODE_LABEL[heater_mode]}</span>
       </Item>
       <Item label="Ground contact">
         {frame.contact?.in_contact ? (

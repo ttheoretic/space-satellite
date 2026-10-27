@@ -41,3 +41,18 @@ class StationUpdate(BaseModel):
     lon: float
     alt_m: float = 0.0
     min_elevation: float = 5.0
+
+
+class CommandCreate(BaseModel):
+    code: str
+    args: dict[str, str] = {}
+    pass_id: str | None = None
+    comment: str = ""
+
+
+class CommandSchedule(BaseModel):
+    pass_id: str
+
+
+class CommandReject(BaseModel):
+    reason: str

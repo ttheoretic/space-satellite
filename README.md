@@ -8,9 +8,9 @@ New-Space-Startups. Dieser Prototyp dient als Demo für Kundengespräche.
 > Temperaturen erzeugt aber ein Simulator. Die Kopfzeile zeigt deshalb dauerhaft
 > **„SIMULATED TELEMETRY“**.
 
-**Stand: Schritt 3 von 4** – Simulator, Live-Dashboard, Grenzwerte & Alarme,
-Demo-Personen mit Rollen, Betriebsprotokoll und Überflugplanung.
-Als Nächstes folgt die Befehlsliste.
+**Stand: Prototyp vollständig (Schritt 4 von 4)** – Simulator, Live-Dashboard,
+Grenzwerte & Alarme, Überflugplanung und Befehlsliste mit Vier-Augen-Freigabe,
+dazu Demo-Personen mit Rollen und ein lückenloses Betriebsprotokoll.
 
 ---
 
@@ -140,8 +140,9 @@ unter http://localhost:8000/docs bzw. http://localhost:8080/docs.
   Zeitraffer einen Tag vor, wird die TLE auch einen Tag „älter“ – genau so
   wächst in der Realität die Ungenauigkeit der Vorhersage.
 
-**Navigationsleiste** – Seiten *Dashboard*, *Passes*, *Alarms*, *Limits*, *Log*
-(grüner Punkt bei *Passes* = Überflug läuft gerade); rechts:
+**Navigationsleiste** – Seiten *Dashboard*, *Passes*, *Commands*, *Alarms*,
+*Limits*, *Log* (grüner Punkt bei *Passes* = Überflug läuft gerade, blaue Zahl
+bei *Commands* = Befehle warten auf Freigabe); rechts:
 - **Alarmanzeige**: `✓ NO ALARMS`, gelb (Warnung) oder rot (kritisch) mit Anzahl
   aktiver und unbestätigter Alarme. Unbestätigte Alarme pulsieren; ein Klick
   öffnet die Alarmliste. Auch der Browser-Tab zeigt die Anzahl: „(2) OrbitDesk“.
@@ -149,8 +150,8 @@ unter http://localhost:8000/docs bzw. http://localhost:8080/docs.
 
   | Person | Rolle | Darf |
   |---|---|---|
-  | Anna | Operator | Alarme bestätigen, Grenzwerte und Bodenstation ändern (ab Schritt 4: Befehle anlegen und senden) |
-  | Ben | Flight Director | wie Operator, zusätzlich Befehle freigeben (ab Schritt 4) |
+  | Anna | Operator | Alarme bestätigen, Grenzwerte und Bodenstation ändern, Befehle anlegen, einplanen und senden |
+  | Ben | Flight Director | wie Operator, zusätzlich Befehle freigeben oder ablehnen |
   | Clara | Engineer | nur lesen |
 
   Die Rechte prüft das **Backend** bei jeder Aktion – nicht nur die Oberfläche.
@@ -193,6 +194,25 @@ Die Überflüge werden mit Skyfield aus der TLE berechnet (`find_events`).
 Mit der Ersatz-TLE weist ein Hinweis darauf hin, dass die Zeiten nur angenähert
 sind.
 
+**Commands** – Befehlsliste. Das Senden ist simuliert (keine Funkverbindung),
+die Regeln sind echt:
+
+| Schritt | Wer | Regel |
+|---|---|---|
+| 1. Anlegen | Operator oder Flight Director | Befehl aus dem Katalog wählen, Argument, Überflug und Begründung angeben. Der Inhalt ist danach nicht mehr änderbar. |
+| 2. Einplanen | Operator oder Flight Director | Überflug zuweisen oder ändern („Change pass…“), solange nicht gesendet. Verpasste Überflüge werden markiert. |
+| 3. Freigeben / Ablehnen | Flight Director | **Vier-Augen-Prinzip:** nicht die Person, die den Befehl angelegt hat. Ablehnen nur mit Begründung. |
+| 4. Senden | Operator oder Flight Director | Nur freigegeben **und** während des zugewiesenen Überflugs mit Kontakt. Der Satellit antwortet mit einem ACK. |
+| – Abbrechen | Operator oder Flight Director | jederzeit vor dem Senden |
+
+Befehlskatalog: `PING` (Verbindungstest), `SET_MODE NOMINAL|SAFE`,
+`HEATER_MODE AUTO|ON|OFF`, `RESET_ADCS`. Gesendete Befehle wirken auf den
+Simulator – z. B. schaltet `HEATER_MODE ON` nach einem Thermostat-Ausfall die
+Heizung über den Ersatz-Schaltkreis ein, `RESET_ADCS` beendet das Taumeln,
+`SET_MODE SAFE` schaltet die Nutzlast ab und beendet einen Latch-up.
+Oben zeigt ein Banner, ob gerade Kontakt besteht und wann der nächste
+Überflug beginnt (mit *Fast-forward*). Jede Aktion steht im *Log*.
+
 **Alarms** – offene Alarme mit Stufe, Zustand (`ACTIVE` / `BACK TO NORMAL`),
 Wert beim Auslösen und aktuell, verletzter Grenze und Zeit. Ein Alarm bleibt in
 der Liste, bis sein Wert wieder gut ist **und** jemand ihn bestätigt hat – so
@@ -210,8 +230,9 @@ leeres Feld = keine Grenze, Haken = Grenzwerte aktiv. *Default* stellt die
 Standardwerte wieder her. Das Backend prüft die Reihenfolge
 (kritisch unten < Warnung unten < Warnung oben < kritisch oben).
 
-**Log** – Betriebsprotokoll: jede Aktion (Grenzwert geändert, Alarm bestätigt)
-mit Person, Missionszeit und echter Uhrzeit.
+**Log** – Betriebsprotokoll: jede Aktion (Befehl angelegt/freigegeben/gesendet,
+Alarm bestätigt, Grenzwert oder Bodenstation geändert) mit Person, Missionszeit
+und echter Uhrzeit, inklusive Antwort des Satelliten.
 
 Beim allerersten Start werden die letzten 3 Stunden „vorsimuliert“, damit die
 Diagramme sofort Kurven zeigen.
@@ -220,36 +241,41 @@ Diagramme sofort Kurven zeigen.
 
 ## Demo-Drehbuch
 
-Ein Vorschlag für ein Kundengespräch (ca. 5 Minuten, wird mit jedem Bauschritt
-erweitert). Vorher unter *Simulation* „Random faults“ ausschalten, damit nichts
-Unerwartetes passiert.
+Die Geschichte: **Ein Fehler an Bord wird erkannt, das Team plant einen
+Befehl, eine zweite Person gibt ihn frei, im nächsten Überflug wird er
+gesendet – und die Telemetrie zeigt die Erholung.** Dauer ca. 8 Minuten.
 
-1. **Überblick:** Dashboard zeigen, auf **SIMULATED TELEMETRY** und die
+Vorbereitung: *Simulation → Reset demo*, „Random faults“ ausschalten, als
+**Anna (Operator)** angemeldet sein.
+
+1. **Überblick (1 min):** Dashboard zeigen. Auf **SIMULATED TELEMETRY** und die
    **TLE-Anzeige** hinweisen: „Die Bahn ist die echte von SONATE-2, aktuell von
-   CelesTrak.“
-2. **Orbit-Physik:** Diagramm *State of Charge* erklären – Sägezahn = Laden in
-   der Sonne, Entladen im Schatten. Auf **60×** und Fenster **30 min** schalten
-   und den Eintritt in die Eklipse live zeigen.
-3. **Anomalie:** Unter *Simulation* „Reaction wheel anomaly“ auslösen. Nach
-   wenigen Sekunden taumelt der Satellit: Kacheln *Pointing Error* und *Angular
-   Rate* werden rot, die Alarmanzeige pulsiert, die Solarleistung sinkt.
-4. **Vier-Augen-Prinzip light:** Auf **Clara (Engineer)** wechseln → *Alarms*:
-   Bestätigen ist gesperrt. Auf **Anna (Operator)** wechseln und bestätigen.
-5. **Nachvollziehbarkeit:** *Log* öffnen – wer hat wann bestätigt.
-6. **Konfigurierbar:** *Limits* öffnen und eine Grenze ändern; erscheint sofort
-   im Protokoll.
-7. **Überflugplanung:** *Passes* öffnen – „Wann können wir mit dem Satelliten
-   sprechen?“ Zeitleiste und Himmelskarte zeigen. Auf *Fast-forward to next
-   pass* klicken, dann **10×**: Kontaktbeginn live (Countdown, grüner Punkt in
-   der Himmelskarte, `IN CONTACT` auf dem Dashboard).
-8. „Clear all faults“, wieder auf **1×**.
+   CelesTrak – die Messwerte simuliert.“ Diagramm *State of Charge* erklären:
+   Sägezahn = Laden in der Sonne, Entladen im Erdschatten (graue Bereiche).
+2. **Fehler (1 min):** Unter *Simulation* „Battery heater thermostat failure“
+   auslösen und auf **60×** stellen. In der nächsten Eklipse kühlt die Batterie
+   ab: Kachel *Battery Temp* wird gelb, dann rot, die Alarmanzeige pulsiert.
+   Zurück auf **1×**.
+3. **Alarm bestätigen (1 min):** Auf **Clara (Engineer)** wechseln → *Alarms*:
+   Bestätigen ist gesperrt (nur Lesezugriff). Zurück zu **Anna** und bestätigen.
+4. **Wann können wir funken? (1 min):** *Passes* öffnen – Countdown, Zeitleiste
+   der nächsten 48 h, Himmelskarte. „Nur während eines Überflugs besteht
+   Funkkontakt.“
+5. **Befehl anlegen (1 min):** *Commands* → `HEATER_MODE` / `ON`, nächsten
+   Überflug wählen, Begründung „Thermostat failed – use backup circuit“,
+   *Create command*. Zeigen: Anna kann ihren eigenen Befehl **nicht** freigeben.
+6. **Freigabe (30 s):** Auf **Ben (Flight Director)** wechseln → *Approve*.
+7. **Senden (1 min):** Zurück zu **Anna**. *Fast-forward to next pass*, dann
+   **10×**. Bei Kontaktbeginn wird die Zeile grün → **Send**. Antwort des
+   Satelliten: „ACK – battery heater ON“. Wieder **1×**.
+8. **Ergebnis (1 min):** Dashboard: Heizung `ON · manual`, die
+   Batterietemperatur steigt, der Alarm geht auf `BACK TO NORMAL`.
+   *Log* zeigt die ganze Kette: angelegt (Anna), freigegeben (Ben), gesendet
+   (Anna), mit Zeiten und Antwort.
 
-Alternative Geschichte mit Bezug zur Physik: „Battery heater thermostat
-failure“ auslösen, auf 60× schalten – in der nächsten Eklipse kühlt die
-Batterie unter 0 °C (Warnung) und −5 °C (kritisch) ab und erholt sich in der
-Sonne wieder (`BACK TO NORMAL`).
-
-*(Ab Schritt 4: Den Fehler per Befehl beheben – anlegen, freigeben, im Überflug senden.)*
+Kürzere Variante: „Reaction wheel anomaly“ auslösen – der Satellit taumelt
+sofort sichtbar (*Pointing Error*, *Angular Rate*); behoben wird er mit dem
+Befehl `RESET_ADCS`.
 
 ---
 
@@ -326,13 +352,14 @@ space-satellite/
 │   │   ├── mission.py          Missionskern: Hintergrundschleifen, Speichern, Verteilen
 │   │   ├── parameters.py       Katalog der Messwerte (Einheit, Standard-Grenzwerte)
 │   │   ├── limits.py           Grenzwertprüfung & Alarmlogik (mit Hysterese)
+│   │   ├── commands.py         Befehlskatalog & Freigabeprozess
 │   │   ├── users.py            Demo-Personen und Rollenrechte
 │   │   ├── audit.py            Betriebsprotokoll (wer, wann, was)
 │   │   ├── sources.py          Schnittstelle "Telemetrie-Quelle" (Simulator ↔ echte Bodenstation)
 │   │   ├── db.py, models.py    Datenbank (SQLAlchemy) und Tabellen
 │   │   ├── ws.py               WebSocket-Verteiler
 │   │   ├── schemas.py          Formate der API-Anfragen
-│   │   ├── api/                REST-Endpunkte (system, telemetry, alarms, passes)
+│   │   ├── api/                REST-Endpunkte (system, telemetry, alarms, passes, commands)
 │   │   ├── orbit/tle.py        TLE laden (CelesTrak → Cache → Ersatz-TLE)
 │   │   ├── orbit/passes.py     Überflugberechnung, Bodenstation, Himmelsbahn
 │   │   └── simulator/
@@ -347,7 +374,7 @@ space-satellite/
         ├── App.tsx             Kopfzeile, Tabs, Seiten
         ├── hooks/useLiveData.ts  WebSocket-Verbindung mit Auto-Reconnect
         ├── components/         Header, Kacheln, Diagramme, Alarmanzeige, Personenauswahl …
-        ├── pages/              Dashboard, Passes, Alarms, Limits, Log
+        ├── pages/              Dashboard, Passes, Commands, Alarms, Limits, Log
         └── styles/theme.css    dunkles Kontrollraum-Design
 ```
 
@@ -367,7 +394,9 @@ Schattengeometrie, realistischen Eklipse-Anteil (25–40 % des Orbits),
 Fehlerbilder (Heizungsausfall kühlt die Batterie unter 0 °C), Hysterese und
 Eskalation der Alarme, Rollenrechte (Engineer darf nichts ändern),
 plausible Überflüge (Anzahl, Dauer, Elevation; höhere Mindestelevation = weniger
-Überflüge), Bodenstation ändern, Vorspulen und die API.
+Überflüge), Bodenstation ändern, Vorspulen, der Befehlsablauf (Rechte,
+Vier-Augen-Prinzip, Senden nur im Überflug, ungültige Befehle, Ablehnen mit
+Begründung) und die API.
 
 ---
 
@@ -396,6 +425,10 @@ plausible Überflüge (Anzahl, Dauer, Elevation; höhere Mindestelevation = weni
 | **Elevation / Azimut** | Höhe über dem Horizont (0–90°) bzw. Himmelsrichtung (0° = Nord, 90° = Ost) |
 | **Mindestelevation** | Untergrenze, ab der Kontakt zählt (Gebäude, Bäume und schwaches Signal knapp über dem Horizont) |
 | **Sky Plot** | Himmelskarte eines Überflugs aus Sicht der Antenne |
+| **Telekommando (Command)** | Befehl vom Boden an den Satelliten |
+| **Uplink** | Funkstrecke vom Boden zum Satelliten (Gegenteil: Downlink für Telemetrie) |
+| **ACK** | *Acknowledgement* – Bestätigung des Satelliten, dass er den Befehl erhalten und ausgeführt hat |
+| **Vier-Augen-Prinzip** | Eine zweite Person prüft und gibt frei, bevor ein Befehl gesendet wird |
 | **Grenzwert (Limit)** | Wert, ab dem ein Messwert als auffällig (Warnung) oder gefährlich (kritisch) gilt |
 | **Hysterese** | Kleiner Sicherheitsabstand, damit ein Alarm bei rauschenden Werten nicht ständig an- und ausgeht |
 | **Quittieren / Bestätigen** | Ein Mensch bestätigt, dass er den Alarm gesehen hat |

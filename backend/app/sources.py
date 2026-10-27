@@ -23,3 +23,7 @@ class TelemetrySource(Protocol):
     def pop_new_events(self) -> list[dict]:
         """Bordereignisse seit dem letzten Aufruf."""
         ...
+
+    def send_command(self, code: str, args: dict) -> str:
+        """Befehl zum Satelliten schicken; gibt dessen Antwort zurück."""
+        ...

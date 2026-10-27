@@ -160,3 +160,34 @@ export interface SpacecraftEvent {
 }
 
 export type ConnectionState = "connecting" | "live" | "offline";
+
+export interface CommandDef {
+  code: string;
+  label: string;
+  description: string;
+  args: { name: string; options: string[] }[];
+}
+
+export type CommandStatus = "awaiting_approval" | "approved" | "rejected" | "sent" | "cancelled";
+
+/** Ein Befehl in der Befehlsliste */
+export interface Command {
+  id: number;
+  code: string;
+  args: Record<string, string>;
+  text: string; // z. B. "HEATER_MODE ON"
+  comment: string;
+  status: CommandStatus;
+  pass_id: string | null;
+  pass_aos: string | null;
+  pass_los: string | null;
+  pass_state: "upcoming" | "in_progress" | "over" | null;
+  created_by: string;
+  created_at: string;
+  decided_by: string | null;
+  decided_at: string | null;
+  reject_reason: string | null;
+  sent_by: string | null;
+  sent_at: string | null;
+  result: string | null;
+}

@@ -14,11 +14,12 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import delete, func, select
 
 from . import audit
-from .clock import MissionClock, iso, parse_iso
+from . import commands as cmd
+from .clock import MissionClock, as_utc, iso, parse_iso
 from .config import settings
 from .db import session_scope
 from .limits import AlarmEngine, LimitSet
-from .models import Setting, TelemetryFrame
+from .models import Command, Setting, TelemetryFrame
 from .orbit.passes import GroundStation, PassPredictor, look_angles, pass_track
 from .orbit.tle import TleManager
 from .parameters import PARAMETERS_BY_KEY
@@ -100,6 +101,7 @@ class Mission:
         """Demo zurücksetzen: Telemetrie löschen, Uhr auf Echtzeit, frischer Satellit."""
         with session_scope() as s:
             s.execute(delete(TelemetryFrame))
+            s.execute(delete(Command))
         self.alarms.reset()
         self.clock = MissionClock()
         self.simulator = CubeSatSimulator(lambda: self.tle.current.satellite)
@@ -178,6 +180,113 @@ class Mission:
             raise ValueError("Next pass is more than 24 hours away")
         await self._fast_forward(target)
         return upcoming[0]
+
+    # ------------------------------------------------------------- Befehle
+    def list_commands(self) -> list[dict]:
+        return cmd.list_all(self.clock.now())
+
+    async def create_command(self, code: str, args: dict, pass_id: str | None, comment: str,
+                             user: str) -> dict:
+        clean = cmd.validate(code, args)
+        now = self.clock.now()
+        p = self._schedulable_pass(pass_id) if pass_id else None
+        with session_scope() as s:
+            c = Command(code=code, args=clean, comment=comment.strip(), status=cmd.AWAITING,
+                        created_by=user, created_at=now)
+            if p:
+                c.pass_id, c.pass_aos, c.pass_los = p["id"], parse_iso(p["aos"]), parse_iso(p["los"])
+            s.add(c)
+            s.flush()
+            result = cmd.to_dict(c, now)
+        audit.record(user, "command.create", now, command=f"#{result['id']} {result['text']}",
+                     pass_id=pass_id, comment=result["comment"])
+        await self.broadcaster.broadcast({"type": "command", "command": result})
+        return result
+
+    async def schedule_command(self, command_id: int, pass_id: str, user: str) -> dict:
+        p = self._schedulable_pass(pass_id)
+
+        def change(c: Command, now: datetime) -> None:
+            if c.status in cmd.FINAL:
+                raise cmd.CommandError(f"Command is already {c.status.replace('_', ' ')}")
+            c.pass_id, c.pass_aos, c.pass_los = p["id"], parse_iso(p["aos"]), parse_iso(p["los"])
+
+        return await self._command_action(command_id, user, "command.schedule", change,
+                                          pass_id=pass_id)
+
+    async def approve_command(self, command_id: int, user: str) -> dict:
+        def change(c: Command, now: datetime) -> None:
+            if c.status != cmd.AWAITING:
+                raise cmd.CommandError("Only commands awaiting approval can be approved")
+            if c.created_by == user:
+                raise cmd.CommandError("Four-eyes principle: a second person must approve "
+                                       "this command, not its author")
+            c.status, c.decided_by, c.decided_at = cmd.APPROVED, user, now
+
+        return await self._command_action(command_id, user, "command.approve", change)
+
+    async def reject_command(self, command_id: int, reason: str, user: str) -> dict:
+        if not reason.strip():
+            raise cmd.CommandError("Please give a reason for the rejection")
+
+        def change(c: Command, now: datetime) -> None:
+            if c.status != cmd.AWAITING:
+                raise cmd.CommandError("Only commands awaiting approval can be rejected")
+            c.status, c.decided_by, c.decided_at = cmd.REJECTED, user, now
+            c.reject_reason = reason.strip()
+
+        return await self._command_action(command_id, user, "command.reject", change,
+                                          reason=reason.strip())
+
+    async def cancel_command(self, command_id: int, user: str) -> dict:
+        def change(c: Command, now: datetime) -> None:
+            if c.status in cmd.FINAL:
+                raise cmd.CommandError(f"Command is already {c.status.replace('_', ' ')}")
+            c.status = cmd.CANCELLED
+
+        return await self._command_action(command_id, user, "command.cancel", change)
+
+    async def send_command(self, command_id: int, user: str) -> dict:
+        """Senden (simuliert) – nur freigegeben und nur während des zugewiesenen Überflugs."""
+
+        def change(c: Command, now: datetime) -> None:
+            if c.status != cmd.APPROVED:
+                raise cmd.CommandError("Only approved commands can be sent")
+            if not c.pass_aos or not c.pass_los:
+                raise cmd.CommandError("Assign the command to a pass first")
+            if not as_utc(c.pass_aos) <= now <= as_utc(c.pass_los):
+                raise cmd.CommandError("No contact: commands can only be sent during their pass")
+            if not look_angles(self.tle.current.satellite, self.station, now)["in_contact"]:
+                raise cmd.CommandError("No contact with the spacecraft right now")
+            c.result = self.source.send_command(c.code, c.args)
+            c.status, c.sent_by, c.sent_at = cmd.SENT, user, now
+
+        result = await self._command_action(command_id, user, "command.send", change)
+        await self._flush_events()
+        return result
+
+    def _schedulable_pass(self, pass_id: str) -> dict:
+        p = next((p for p in self.get_passes(48) if p["id"] == pass_id), None)
+        if p is None:
+            raise cmd.CommandError(f"Pass {pass_id} is not an upcoming pass")
+        return p
+
+    async def _command_action(self, command_id: int, user: str, action: str, change,
+                              **details) -> dict:
+        """Gemeinsamer Ablauf: Befehl laden, Regel prüfen und ändern,
+        protokollieren und an alle Browser melden."""
+        now = self.clock.now()
+        with session_scope() as s:
+            c = s.get(Command, command_id)
+            if c is None:
+                raise KeyError(command_id)
+            change(c, now)
+            s.flush()
+            result = cmd.to_dict(c, now)
+        audit.record(user, action, now, command=f"#{result['id']} {result['text']}",
+                     result=result["result"], **details)
+        await self.broadcaster.broadcast({"type": "command", "command": result})
+        return result
 
     async def refresh_tle(self) -> bool:
         ok = await self.tle.refresh_online()

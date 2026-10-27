@@ -9,16 +9,17 @@ import { BRAND } from "./brand";
 import { useLiveData, useMissionTime } from "./hooks/useLiveData";
 import { usePasses } from "./hooks/usePasses";
 import { Alarms } from "./pages/Alarms";
+import { Commands } from "./pages/Commands";
 import { Dashboard } from "./pages/Dashboard";
 import { Limits } from "./pages/Limits";
 import { Log } from "./pages/Log";
 import { Passes } from "./pages/Passes";
 import type { Parameter, User } from "./types";
 
-// Die Seite "Commands" kommt in Schritt 4 dazu.
 const TABS = [
   { id: "dashboard", label: "Dashboard" },
   { id: "passes", label: "Passes" },
+  { id: "commands", label: "Commands" },
   { id: "alarms", label: "Alarms" },
   { id: "limits", label: "Limits" },
   { id: "log", label: "Log" },
@@ -60,9 +61,14 @@ export default function App() {
     document.title = unacked ? `(${unacked}) ${BRAND.name}` : BRAND.name;
   }, [unacked]);
 
+  const awaiting = live.commands.filter((c) => c.status === "awaiting_approval").length;
+
   // Protokoll neu laden, wenn sich Alarme (z. B. bestätigt) oder Grenzwerte ändern
   const logKey =
-    live.alarms.map((a) => `${a.id}:${a.acknowledged}`).join() + live.limits.map((l) => l.updated_at).join();
+    live.alarms.map((a) => `${a.id}:${a.acknowledged}`).join() +
+    live.limits.map((l) => l.updated_at).join() +
+    live.commands.map((c) => `${c.id}:${c.status}:${c.pass_id}`).join() +
+    (live.status ? JSON.stringify(live.status.station) : "");
 
   return (
     <div className="app">
@@ -78,6 +84,9 @@ export default function App() {
             >
               {t.label}
               {t.id === "alarms" && unacked > 0 && <span className="tabs__badge">{unacked}</span>}
+              {t.id === "commands" && awaiting > 0 && (
+                <span className="tabs__badge tabs__badge--info" title="Commands awaiting approval">{awaiting}</span>
+              )}
               {t.id === "passes" && live.latest?.contact?.in_contact && (
                 <span className="tabs__live" title="Pass in progress">●</span>
               )}
@@ -106,6 +115,16 @@ export default function App() {
           />
         )}
         {tab === "passes" && <Passes data={passes} now={missionTime} latest={live.latest} user={user} />}
+        {tab === "commands" && (
+          <Commands
+            commands={live.commands}
+            passes={passes?.passes ?? []}
+            now={missionTime}
+            latest={live.latest}
+            user={user}
+            stationName={live.status?.station.name ?? ""}
+          />
+        )}
         {tab === "alarms" && <Alarms alarms={live.alarms} latest={live.latest} user={user} />}
         {tab === "limits" && <Limits params={params} limits={live.limits} latest={live.latest} user={user} />}
         {tab === "log" && <Log refreshKey={logKey} />}

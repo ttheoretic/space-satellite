@@ -7,7 +7,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
-import type { Alarm, ConnectionState, Frame, LimitRow, SpacecraftEvent, Status } from "../types";
+import type { Alarm, Command, ConnectionState, Frame, LimitRow, SpacecraftEvent, Status } from "../types";
 
 /** Höchstzahl der Punkte pro Diagramm – mehr bringt optisch nichts, kostet aber Rechenzeit. */
 const MAX_POINTS = 600;
@@ -18,6 +18,7 @@ type ServerMessage =
   | { type: "event"; event: SpacecraftEvent }
   | { type: "alarm"; alarm: Alarm }
   | { type: "limits"; limits: LimitRow[] }
+  | { type: "command"; command: Command }
   | { type: "reload" }; // Demo zurückgesetzt oder vorgespult → alles neu laden
 
 export function useLiveData(windowMinutes: number) {
@@ -27,6 +28,7 @@ export function useLiveData(windowMinutes: number) {
   const [events, setEvents] = useState<SpacecraftEvent[]>([]);
   const [alarms, setAlarms] = useState<Alarm[]>([]);
   const [limits, setLimits] = useState<LimitRow[]>([]);
+  const [commands, setCommands] = useState<Command[]>([]);
   const [connection, setConnection] = useState<ConnectionState>("connecting");
   // Wird hochgezählt, wenn der Verlauf neu geladen werden soll
   const [reloadKey, setReloadKey] = useState(0);
@@ -42,6 +44,7 @@ export function useLiveData(windowMinutes: number) {
     api.events().then((e) => !cancelled && setEvents(e)).catch(() => {});
     api.alarms().then((a) => !cancelled && setAlarms(a)).catch(() => {});
     api.limits().then((l) => !cancelled && setLimits(l)).catch(() => {});
+    api.commands().then((c) => !cancelled && setCommands(c)).catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -71,6 +74,10 @@ export function useLiveData(windowMinutes: number) {
           break;
         case "limits":
           setLimits(msg.limits);
+          break;
+        case "command":
+          // neuer oder geänderter Befehl: ersetzen bzw. oben einfügen
+          setCommands((prev) => [msg.command, ...prev.filter((c) => c.id !== msg.command.id)].sort((a, b) => b.id - a.id));
           break;
         case "reload":
           setLatest(null);
@@ -105,7 +112,7 @@ export function useLiveData(windowMinutes: number) {
     };
   }, []);
 
-  return { status, latest, history, events, alarms, limits, connection, reloadKey };
+  return { status, latest, history, events, alarms, limits, commands, connection, reloadKey };
 }
 
 /**

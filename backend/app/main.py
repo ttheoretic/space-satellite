@@ -13,7 +13,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 
-from .api import alarms, passes, system, telemetry
+from .api import alarms, commands, passes, system, telemetry
 from .config import settings
 from .db import init_db
 from .mission import mission
@@ -36,6 +36,7 @@ app.include_router(system.router)
 app.include_router(telemetry.router)
 app.include_router(alarms.router)
 app.include_router(passes.router)
+app.include_router(commands.router)
 
 
 @app.websocket("/ws")
